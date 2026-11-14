@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101512" />
+    <title>WestPlay · Mobil ekran</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/client.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/" aria-label="WestPlay">WestPlay<span> MOBİL EKRAN</span></a
+      ><span id="status" role="status">Bağlantı bekleniyor</span>
+    </header>
+    <main>
+      <section id="pairing" aria-labelledby="title">
+        <p class="eyebrow">AYNI AĞ. AYNI EKRAN.</p>
+        <h1 id="title">Ekran artık<br />elinin altında.</h1>
+        <p>
+          PC’de WestPlay → Controls → Mobile screen bölümündeki altı haneli kodu
+          gir.
+        </p>
+        <form id="pair-form">
+          <label for="code">Eşleşme kodu</label>
+          <div class="entry">
+            <input
+              id="code"
+              name="code"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              autocomplete="one-time-code"
+              required
+              placeholder="000000"
+            /><button id="connect" type="submit">
+              Bağlan <span aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </form>
+        <p class="fine">
+          Görüntü ve kontrol yerel ağda kalır. Yalnızca güvendiğin bir ağda
+          bağlan. Ses PC’de çalar.
+        </p>
+        <p id="error" role="alert"></p>
+      </section>
+      <section id="display" hidden aria-label="WestPlay canlı ekran">
+        <div id="surface">
+          <video
+            id="video"
+            autoplay
+            playsinline
+            muted
+            disablepictureinpicture
+          ></video>
+          <p id="waiting">PC görüntüsü bekleniyor…</p>
+        </div>
+        <nav aria-label="Ekran araçları">
+          <button id="scroll" type="button" aria-pressed="false">
+            Kaydırma: kapalı</button
+          ><button id="keyboard" type="button">Klavye</button
+          ><button id="full" type="button">Tam ekran</button
+          ><button id="reconnect" type="button">Yeniden bağlan</button
+          ><button id="disconnect" type="button">Bağlantıyı kes</button
+          ><output
+            id="latency"
+            aria-label="Bağlantı gidiş dönüş süresi"
+          ></output>
+        </nav>
+        <form id="text-form" hidden>
+          <label for="text">Ekranda seçili alana yaz</label>
+          <div class="entry">
+            <input
+              id="text"
+              autocomplete="off"
+              maxlength="500"
+              placeholder="Metni yaz ve gönder"
+            /><button type="submit">Gönder</button>
+          </div>
+          <div class="keys">
+            <button id="backspace" type="button">⌫ Sil</button
+            ><button id="enter" type="button">Enter ↵</button>
+          </div>
+        </form>
+        <p id="connection-error" role="alert"></p>
+      </section>
+    </main>
+  </body>
+</html>

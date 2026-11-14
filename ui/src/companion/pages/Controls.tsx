@@ -6,6 +6,7 @@ import { GLOW, openAndClose, useScreenAt, useTour } from '../room/screen'
 import { type Binding, DEFAULT_KEY, KEYBIND_IDS, type KeybindId, SENSITIVITY, type Settings } from '../useSettings'
 import { KeyButton } from './KeyButton'
 import type { PageProps } from './page'
+import { MobileControl } from './MobileControl'
 
 /**
  * How the player uses the truck's screen: the key they hold (the onboarding's keycaps), how fast the pointer
@@ -53,6 +54,7 @@ export function Controls({ settings: state, cw }: PageProps) {
         </Group>
       )}
       {settings && <Keybinds settings={settings} update={update} w={w} />}
+      <MobileControl />
       {error && <Note tone="bad">{error}</Note>}
     </Panel>
   )

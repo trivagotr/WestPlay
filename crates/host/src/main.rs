@@ -28,6 +28,7 @@ fn main() {
         .map(|dir| PathBuf::from(dir).join("WestPlay"))
         .unwrap_or_else(|| std::env::temp_dir().join("WestPlay"));
     let config = Config {
+        remote: Arc::new(westplay_host::RemoteControl::new()),
         width,
         height,
         content: url.map(Content::Url).unwrap_or_else(|| Content::Html(TEST_PAGE.to_string())),

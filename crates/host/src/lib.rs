@@ -6,8 +6,8 @@
 #[macro_use]
 pub mod log;
 mod apple_music;
-pub mod browser;
 mod brightness;
+pub mod browser;
 mod camera;
 mod capture;
 mod cursor;
@@ -26,11 +26,13 @@ mod planner;
 mod play_log;
 mod player;
 mod pointer;
+mod remote;
+pub use westplay_remote::{RemoteControl, RemoteStatus, interfaces as mobile_interfaces};
+#[cfg(test)]
+mod gpu_contention;
 pub mod route;
 mod route_change;
 mod safari;
-#[cfg(test)]
-mod gpu_contention;
 pub mod settings;
 mod signin;
 pub mod speakers;
@@ -210,6 +212,7 @@ impl OpenRequest {
 }
 
 pub struct Config {
+    pub remote: Arc<RemoteControl>,
     pub width: u32,
     pub height: u32,
     pub content: Content,
@@ -475,6 +478,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
         if let Some(pipeline) = &pipeline {
             let squeeze = config.height as f32 / page_height.max(1) as f32;
             pipeline.capture.flush(cursor.look(Instant::now()), squeeze);
+            pipeline.capture.mirror(&config.remote);
             // Dark over something light, light over something dark: as the frame shows what's under it, whatever
             // draws it (owner 2026-11-09: "it shouldn't care what lies under it, app or not").
             if let Some(light) = pipeline.capture.light_under()
@@ -744,7 +748,9 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
             plugin.parking_frame.load(Ordering::Acquire),
             plugin.heartbeat.load(Ordering::Acquire),
         );
-        let mouse = pointer.update(&plugin.pointer, &webview, web, covered);
+        let remote_inputs = config.remote.take_input(Instant::now());
+        let mouse =
+            pointer.update(&plugin.pointer, &webview, web, covered, &remote_inputs, config.remote.wants_frames());
         cursor.follow(mouse, Instant::now());
         // The player's keybinds pressed (and the volume keys held) in the game: the page acts on each.
         for keybind in Keybind::ALL {
@@ -1013,7 +1019,9 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
                 Some(PageMessage::Player { command }) => {
                     if music_player.is_none() && matches!(command, music_folder::Command::Pause) {
                         // Nothing to pause: Player's player isn't running.
-                    } else if let Some(player) = start_music_player(&mut music_player, &stage, &config, music_dir.as_deref()) {
+                    } else if let Some(player) =
+                        start_music_player(&mut music_player, &stage, &config, music_dir.as_deref())
+                    {
                         let _ = player.command(&command);
                     }
                 }

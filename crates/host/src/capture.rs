@@ -13,7 +13,7 @@
 //! copied. The mailbox's lock is never held across GPU work: WGC may call in while holding the device's
 //! lock, and a lock held across a copy (which takes the device's lock) would deadlock against it.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -82,6 +82,7 @@ pub struct Capture {
     light: Cell<f32>,
     drawn_light: Cell<f32>,
     dim_failed: Cell<bool>,
+    mobile: RefCell<Option<crate::remote::Readback>>,
 }
 
 impl Capture {
@@ -148,12 +149,33 @@ impl Capture {
             light: Cell::new(1.0),
             drawn_light: Cell::new(1.0),
             dim_failed: Cell::new(false),
+            mobile: RefCell::new(None),
         })
     }
 
     /// The screen's light from now on (0 to 1 of full: `brightness::light`); the last frame goes out again with it.
     pub fn set_light(&self, light: f32) {
         self.light.set(if light.is_finite() { light.clamp(brightness::LEAST_LIGHT, 1.0) } else { 1.0 });
+    }
+    /// Copies only the optional mobile consumer; game publishing has already finished.
+    pub fn mirror(&self, remote: &westplay_remote::RemoteControl) {
+        let mut mobile = self.mobile.borrow_mut();
+        if !remote.wants_frames() || !self.has_clean.get() {
+            mobile.take();
+            return;
+        }
+        if mobile.is_none() {
+            match crate::remote::Readback::new(&self.context, &self.shared) {
+                Ok(readback) => *mobile = Some(readback),
+                Err(error) => {
+                    remote.report_error(format!("Mobile GPU readback failed: {error}"));
+                    return;
+                }
+            }
+        }
+        if let Some(mobile) = mobile.as_mut() {
+            mobile.step(&self.context, &self.shared, remote);
+        }
     }
 
     /// Whether what's under the cursor is light, as the frame shows it (whatever draws it: the cab, a web page, a

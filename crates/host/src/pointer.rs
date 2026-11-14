@@ -76,6 +76,7 @@ pub struct Pointer {
     /// Whether the game's parking camera covered the screen with a button held that hasn't been let go since: as the
     /// camera goes, that button isn't pressed on the page (it was pressed on the camera).
     held_through_cover: bool,
+    remote_active: bool,
 }
 
 /// A web page shown in the cab (Safari's tab), where the mouse reaches it: its rectangle of the cabin page (page
@@ -119,6 +120,7 @@ impl Pointer {
             web_press: None,
             web_clicks: 1,
             held_through_cover: false,
+            remote_active: false,
         }
     }
 
@@ -161,6 +163,8 @@ impl Pointer {
         webview: &OffscreenWebView,
         web: Option<WebArea<'_>>,
         covered: bool,
+        remote: &[westplay_remote::Input],
+        remote_connected: bool,
     ) -> Mouse {
         let active = block.active.load(Ordering::Acquire) == 1;
         let held = if active { block.buttons.load(Ordering::Acquire) } else { 0 };
@@ -173,8 +177,119 @@ impl Pointer {
             wheel: block.wheel.swap(0, Ordering::AcqRel),
             buttons,
         };
+        let now = Instant::now();
+        if self.remote_active && (!remote_connected || covered) {
+            let events = self.remote_events(&westplay_remote::Input::Cancel);
+            self.dispatch(events, webview, web.as_ref(), true);
+            self.remote_active = false;
+        }
+        // A drag stays with its source through release. Ordinary hover may switch source.
+        if !covered && remote_connected && !remote.is_empty() && (self.remote_active || self.buttons == 0) {
+            self.remote_active = true;
+            for event in remote {
+                match event {
+                    westplay_remote::Input::Text { text } => {
+                        if self.on_web {
+                            if let Some(web) = &web {
+                                let _ = web
+                                    .view
+                                    .devtools("Input.insertText", &serde_json::json!({"text": text}).to_string());
+                            }
+                        } else {
+                            let _ = webview
+                                .post_json(&serde_json::json!({"type":"typed","events":[{"text":text}]}).to_string());
+                        }
+                    }
+                    westplay_remote::Input::Key { key } => {
+                        if self.on_web {
+                            if let Some(web) = &web {
+                                let (name, code) = match key.as_str() {
+                                    "backspace" => ("Backspace", 8),
+                                    "enter" => ("Enter", 13),
+                                    _ => ("Escape", 27),
+                                };
+                                for kind in ["keyDown", "keyUp"] {
+                                    let _ = web.view.devtools(
+                                        "Input.dispatchKeyEvent",
+                                        &serde_json::json!({"type":kind,"key":name,"windowsVirtualKeyCode":code})
+                                            .to_string(),
+                                    );
+                                }
+                            }
+                        } else {
+                            let _ = webview
+                                .post_json(&serde_json::json!({"type":"typed","events":[{"key":key}]}).to_string());
+                        }
+                    }
+                    _ => {
+                        let events = self.remote_events(event);
+                        self.dispatch(events, webview, web.as_ref(), true);
+                    }
+                }
+            }
+            return Mouse {
+                active: self.active,
+                x: self.x,
+                y: self.y,
+                pressed: self.buttons & PointerBlock::LEFT != 0,
+                used: true,
+            };
+        }
+        let native_used = input.dx != 0 || input.dy != 0 || input.wheel != 0 || input.buttons != 0;
+        if self.remote_active && (self.buttons != 0 || !native_used) {
+            return Mouse {
+                active: self.active,
+                x: self.x,
+                y: self.y,
+                pressed: self.buttons & PointerBlock::LEFT != 0,
+                used: false,
+            };
+        }
+        self.remote_active = false;
         let buttons = self.buttons;
-        let events = self.step(input, Instant::now());
+        let events = self.step(input, now);
+        self.dispatch(events, webview, web.as_ref(), native_used || self.buttons != buttons)
+    }
+    fn remote_events(&mut self, input: &westplay_remote::Input) -> Vec<(COREWEBVIEW2_MOUSE_EVENT_KIND, u32)> {
+        use westplay_remote::Input as RemoteInput;
+        if !input.valid() {
+            return vec![];
+        }
+        let mut events = Vec::new();
+        if matches!(input, RemoteInput::Cancel) {
+            self.set_buttons(0, &mut events);
+            self.active = false;
+            events.push((COREWEBVIEW2_MOUSE_EVENT_KIND_LEAVE, 0));
+            return events;
+        }
+        let (x, y) = match input {
+            RemoteInput::Down { x, y }
+            | RemoteInput::Move { x, y }
+            | RemoteInput::Up { x, y }
+            | RemoteInput::Wheel { x, y, .. } => (*x, *y),
+            _ => return events,
+        };
+        self.active = true;
+        self.x = (x as f32 * self.width).clamp(0.0, self.width - 1.0);
+        self.y = (y as f32 * self.height).clamp(0.0, self.height - 1.0);
+        events.push((COREWEBVIEW2_MOUSE_EVENT_KIND_MOVE, 0));
+        match input {
+            RemoteInput::Down { .. } => self.set_buttons(PointerBlock::LEFT, &mut events),
+            RemoteInput::Up { .. } => self.set_buttons(0, &mut events),
+            RemoteInput::Wheel { delta, .. } => {
+                events.push((COREWEBVIEW2_MOUSE_EVENT_KIND_WHEEL, (-*delta as i32) as u32))
+            }
+            _ => {}
+        }
+        events
+    }
+    fn dispatch(
+        &mut self,
+        events: Vec<(COREWEBVIEW2_MOUSE_EVENT_KIND, u32)>,
+        webview: &OffscreenWebView,
+        web: Option<&WebArea<'_>>,
+        used: bool,
+    ) -> Mouse {
         let to_web = self.route(web.as_ref().map(|web| web.contains(self.x, self.y)));
         if to_web != self.on_web {
             // Off one, onto the other: the one left is told, as a browser tells a page the mouse left it.
@@ -219,13 +334,7 @@ impl Pointer {
             (_, None) => Some(to_web),
             (_, held) => held,
         };
-        Mouse {
-            active: self.active,
-            x: self.x,
-            y: self.y,
-            pressed: self.buttons & PointerBlock::LEFT != 0,
-            used: input.dx != 0 || input.dy != 0 || input.wheel != 0 || self.buttons != buttons,
-        }
+        Mouse { active: self.active, x: self.x, y: self.y, pressed: self.buttons & PointerBlock::LEFT != 0, used }
     }
 
     /// Whether the mouse's events go to the web page (`over_web`: whether the cursor is over it; `None`: none
@@ -591,5 +700,30 @@ mod tests {
             events,
             vec![(COREWEBVIEW2_MOUSE_EVENT_KIND_LEFT_BUTTON_UP, 0), (COREWEBVIEW2_MOUSE_EVENT_KIND_LEAVE, 0)]
         );
+    }
+}
+
+#[cfg(test)]
+mod remote_tests {
+    use super::*;
+    use westplay_remote::Input as RemoteInput;
+    #[test]
+    fn absolute_touch_uses_current_page_dimensions_and_releases() {
+        let mut pointer = Pointer::new(1280, 900);
+        let events = pointer.remote_events(&RemoteInput::Down { x: 0.25, y: 0.75 });
+        assert_eq!((pointer.x, pointer.y), (320.0, 675.0));
+        assert!(events.iter().any(|e| e.0 == LEFT_DOWN));
+        let events = pointer.remote_events(&RemoteInput::Cancel);
+        assert_eq!(pointer.buttons, 0);
+        assert!(events.iter().any(|e| e.0 == COREWEBVIEW2_MOUSE_EVENT_KIND_LEFT_BUTTON_UP));
+    }
+    #[test]
+    fn touch_at_bottom_right_stays_inside_page() {
+        let mut pointer = Pointer::new(1280, 720);
+        pointer.remote_events(&RemoteInput::Down { x: 1.0, y: 1.0 });
+        assert_eq!((pointer.x, pointer.y), (1279.0, 719.0));
+        pointer.set_size(1280, 900);
+        pointer.remote_events(&RemoteInput::Move { x: 0.5, y: 0.5 });
+        assert_eq!((pointer.x, pointer.y), (640.0, 450.0));
     }
 }

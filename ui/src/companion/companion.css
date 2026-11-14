@@ -857,3 +857,49 @@ button {
 .cp-keybind[data-listening] {
   box-shadow: inset 0 0 0 2px var(--blue);
 }
+.mobile-control {
+  padding: 16px 20px;
+}
+.mobile-control label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.mobile-control select {
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #ffffff25;
+  border-radius: 8px;
+  background: #24302a;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+.mobile-control p {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.75;
+}
+.mobile-control-live {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.mobile-qr {
+  width: 124px;
+  height: 124px;
+  border: 8px solid #fff;
+  border-radius: 8px;
+}
+.mobile-code {
+  display: block;
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 5px;
+  margin: 8px 0;
+}
+.mobile-address {
+  overflow-wrap: anywhere;
+  user-select: text;
+}

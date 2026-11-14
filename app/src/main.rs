@@ -34,6 +34,33 @@ struct WestplayOpen(Arc<OpenRequest>);
 
 /// The companion's sign-ins and sign-outs (YouTube, Spotify, Apple Music), for the host.
 struct Accounts(Arc<AccountRequests>);
+struct Mobile(Arc<westplay_host::RemoteControl>);
+
+#[tauri::command]
+fn mobile_interfaces() -> serde_json::Value {
+    serde_json::json!(westplay_host::mobile_interfaces())
+}
+#[tauri::command]
+async fn mobile_status(mobile: State<'_, Mobile>) -> Result<westplay_host::RemoteStatus, String> {
+    let remote = mobile.0.clone();
+    tauri::async_runtime::spawn_blocking(move || remote.status()).await.map_err(|e| e.to_string())
+}
+#[tauri::command]
+async fn mobile_configure(
+    address: Option<String>,
+    mobile: State<'_, Mobile>,
+) -> Result<westplay_host::RemoteStatus, String> {
+    let bind = address
+        .map(|address| address.parse::<std::net::Ipv4Addr>().map_err(|_| "Invalid IPv4 address".to_string()))
+        .transpose()?;
+    let remote = mobile.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        remote.configure(bind)?;
+        Ok(remote.status())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
 /// The player's settings: kept on disk, applied live by the host thread, changed from the companion window.
 struct SettingsStore {
@@ -207,10 +234,14 @@ fn main() {
         .manage(update::Updates::default())
         .manage(WestplayOpen(open_request.clone()))
         .manage(Accounts(accounts.clone()))
+        .manage(Mobile(Arc::new(westplay_host::RemoteControl::new())))
         .register_asynchronous_uri_scheme_protocol(maps::SCHEME, maps::serve)
         .register_asynchronous_uri_scheme_protocol(maps::CUSTOMIZE_SCHEME, maps::serve_customize)
         .invoke_handler(tauri::generate_handler![
             companion_ready,
+            mobile_interfaces,
+            mobile_status,
+            mobile_configure,
             window_in_front,
             room_held,
             set_westplay_open,
@@ -289,6 +320,7 @@ fn main() {
 
     app.run(|app, event| {
         if let RunEvent::Exit = event {
+            let _ = app.state::<Mobile>().0.configure(None);
             stop_host(app);
         }
     });
@@ -338,6 +370,7 @@ fn start_host(
     looks: Looks,
 ) -> Result<Host, Box<dyn std::error::Error>> {
     let content = cabin_content(app);
+    let remote = app.state::<Mobile>().0.clone();
     let data_dir = app.path().app_local_data_dir()?;
     let map_builder = setup::map_builder_file(app);
     westplay_host::log!(
@@ -362,8 +395,10 @@ fn start_host(
             let status_events = events.clone();
             let (settings_events, settings_dir) = (events.clone(), looks.config_dir.clone());
             let customize_changed = looks.customize_changed.clone();
+            let remote = remote.clone();
             let run = std::thread::Builder::new().name("westplay-host".into()).spawn(move || {
                 let config = Config {
+                    remote,
                     width: SCREEN_WIDTH,
                     height: SCREEN_HEIGHT,
                     content,

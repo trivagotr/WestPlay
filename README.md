@@ -171,6 +171,12 @@ WestPlay looks for updates on its own and asks before installing one.
 Simulator version 1.62 (other versions may work; the companion says when one is untested), and Microsoft Edge WebView2
 (part of Windows 11; the installer adds it where it's missing).
 
+## Mobile screen preview
+
+This development branch adds an opt-in **Controls → Mobile screen** feature: mirror WestPlay to one phone on
+the same private LAN and control it by touch. It requires hardware-enabled FFmpeg. See
+[setup, gestures, security and validation limits](docs/mobile-control.md) before using the preview.
+
 ## Privacy
 
 WestPlay has no servers, no accounts of its own and no analytics. It doesn't collect or send anything about you.
