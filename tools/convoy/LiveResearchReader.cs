@@ -74,9 +74,9 @@ class LiveResearchReader {
     static readonly Stopwatch OwnClock=Stopwatch.StartNew();
     static object OwnPose(int pid){
         try {
-            using(var map=MemoryMappedFile.OpenExisting("Local\\WestPlay.Bridge.v28",MemoryMappedFileRights.Read))
+            using(var map=MemoryMappedFile.OpenExisting("Local\\WestPlay.Bridge.v29",MemoryMappedFileRights.Read))
             using(var view=map.CreateViewAccessor(0,128,MemoryMappedFileAccess.Read)){
-                if(view.ReadUInt32(0)!=0x37425057||view.ReadUInt32(4)!=28||view.ReadUInt32(8)!=(uint)pid){OwnFreshness.Reset();return null;}
+                if(view.ReadUInt32(0)!=0x37425057||view.ReadUInt32(4)!=29||view.ReadUInt32(8)!=(uint)pid){OwnFreshness.Reset();return null;}
                 uint before=view.ReadUInt32(72);if((before&1)!=0)return null;
                 Thread.MemoryBarrier();byte[] data=new byte[48];view.ReadArray(80,data,0,data.Length);Thread.MemoryBarrier();
                 if(before!=view.ReadUInt32(72))return null;

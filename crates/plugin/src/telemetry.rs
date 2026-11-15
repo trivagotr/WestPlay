@@ -157,6 +157,7 @@ pub unsafe fn register(params: &TelemetryInitParamsV100) {
             }
         }
 
+        crate::web_vehicle::register(params);
         let register_channel: ChannelRegisterFn = std::mem::transmute(params.register_for_channel);
         let mut registered = 0;
         for (index, &(name, value_type, _)) in CHANNELS.iter().enumerate() {
@@ -237,6 +238,7 @@ unsafe fn on_game_event(event: u32, info: *const c_void) {
                         ..*snapshot
                     };
                     bridge.plugin.telemetry.write(&published);
+                    crate::web_vehicle::publish();
                 }
                 let (speed, paused) = (snapshot.speed, snapshot.paused);
                 drop(snapshot);
@@ -391,6 +393,22 @@ unsafe fn on_channel_value(value: *const ScsValue, context: *mut c_void) {
     unsafe {
         let Some(&(_, _, field)) = CHANNELS.get(context as usize) else { return };
         let mut s = SNAPSHOT.lock().unwrap_or_else(|e| e.into_inner());
+        let web_index = match field {
+            Field::CruiseControl => Some(0),
+            Field::Fuel => Some(1),
+            Field::FuelRange => Some(2),
+            Field::EngineEnabled => Some(3),
+            Field::ElectricEnabled => Some(4),
+            Field::ParkingBrake => Some(5),
+            Field::LowBeam => Some(6),
+            Field::HighBeam => Some(7),
+            Field::LeftBlinker => Some(8),
+            Field::RightBlinker => Some(9),
+            _ => None,
+        };
+        if let Some(index) = web_index {
+            crate::web_vehicle::available(index, !value.is_null());
+        }
         // A null value means the channel currently has no value (e.g. no truck); reset to the default.
         let Some(value) = value.as_ref() else {
             reset(&mut s, field);

@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory=$true)][string]$OutputDirectory,
     [Parameter(Mandatory=$true)][string]$ApkPath,
     [string]$LicenseDirectory,
+    [string]$ConvoyReaderPath,
     [string]$AndroidNoticesPath,
     [switch]$CreateZip
 )
@@ -25,6 +26,7 @@ if ($OutputDirectory.StartsWith($RepoRoot + [IO.Path]::DirectorySeparatorChar, [
 $files = @('westplay.exe', 'westplay.dll', 'westplay-probe.exe', 'westplay-maps.exe')
 foreach ($name in $files) { Require-File (Join-Path $BinaryDirectory $name) }
 foreach ($name in @('LICENSE', 'THIRD_PARTY_LICENSES.md', 'THIRD_PARTY_NOTICES.md')) { Require-File (Join-Path $LicenseDirectory $name) }
+if ($ConvoyReaderPath) { $ConvoyReaderPath = (Resolve-Path -LiteralPath $ConvoyReaderPath).Path; Require-File $ConvoyReaderPath }
 Require-File $ApkPath
 Require-File (Join-Path $RepoRoot 'ui\dist\index.html')
 Require-File (Join-Path $RepoRoot 'ui\dist\cabin.html')
@@ -40,6 +42,11 @@ $denyName = '(^|/)(\.env[^/]*|local\.properties|signing\.properties|credentials(
 $sourceFiles = @($sourceFiles | Where-Object { $_ -notmatch $denySegment -and $_ -notmatch $denyName -and (Test-Path -LiteralPath (Join-Path $RepoRoot $_) -PathType Leaf) } | Sort-Object -Unique)
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 foreach ($name in $files) { Copy-Item -LiteralPath (Join-Path $BinaryDirectory $name) -Destination $OutputDirectory }
+if ($ConvoyReaderPath) {
+    Copy-Item -LiteralPath $ConvoyReaderPath -Destination (Join-Path $OutputDirectory 'WestPlay.ConvoyReader.exe')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'tools\convoy\NOTICE.md') -Destination (Join-Path $OutputDirectory 'CONVOY_NOTICE.md')
+    Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\web-dashboard.tr.md') -Destination (Join-Path $OutputDirectory 'WEB_IKINCI_EKRAN_TR.md')
+}
 foreach ($name in @('LICENSE', 'THIRD_PARTY_LICENSES.md', 'THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $LicenseDirectory $name) -Destination $OutputDirectory }
 if (Test-Path -LiteralPath (Join-Path $LicenseDirectory 'third-party') -PathType Container) { Copy-Item -LiteralPath (Join-Path $LicenseDirectory 'third-party') -Destination $OutputDirectory -Recurse }
 New-Item -ItemType Directory -Path (Join-Path $OutputDirectory 'ui'), (Join-Path $OutputDirectory 'Android'), (Join-Path $OutputDirectory 'source') | Out-Null

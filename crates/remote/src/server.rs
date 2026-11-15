@@ -29,6 +29,13 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
         .route("/style.css", get(|| async { asset("text/css; charset=utf-8", include_str!("../web/style.css")) }))
         .route("/pair", post(pair))
         .route("/offer", post(offer))
+        .route("/dashboard", post(dashboard))
+        .route("/convoy", post(convoy))
+        .route("/diagnostics", post(diagnostics))
+        .route(
+            "/dashboard.js",
+            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/dashboard.js")) }),
+        )
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), guard))
         .with_state(state.clone());
@@ -137,6 +144,51 @@ async fn offer(State(state): State<Arc<Run>>, Json(body): Json<Offer>) -> Respon
     }
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Auth {
+    token: String,
+}
+async fn dashboard(State(state): State<Arc<Run>>, Json(auth): Json<Auth>) -> Response {
+    if auth.token.len() > 128 || !state.authorized(&auth.token) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    let now = Instant::now();
+    let mut snapshot = state.dashboard.lock().unwrap().snapshot(now);
+    snapshot["convoy"] = state.observer.data.lock().unwrap().snapshot(now);
+    if snapshot["connected"] != true {
+        snapshot["convoy"]["players"] = serde_json::json!([]);
+    }
+    Json(snapshot).into_response()
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Observe {
+    token: String,
+    enabled: bool,
+}
+async fn convoy(State(state): State<Arc<Run>>, Json(auth): Json<Observe>) -> Response {
+    if auth.token.len() > 128 || !state.authorized(&auth.token) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    if auth.enabled {
+        let pid = state.dashboard.lock().unwrap().pid(Instant::now());
+        let Some(pid) = pid.filter(|_| state.connected.load(Ordering::Acquire)) else {
+            return (StatusCode::CONFLICT, "Game and mobile screen must be connected.").into_response();
+        };
+        crate::convoy::start(state.clone(), pid);
+    } else {
+        state.observer.stop();
+    }
+    Json(serde_json::json!({"ok":true})).into_response()
+}
+async fn diagnostics(State(state): State<Arc<Run>>, Json(auth): Json<Auth>) -> Response {
+    if auth.token.len() > 128 || !state.authorized(&auth.token) {
+        return StatusCode::UNAUTHORIZED.into_response();
+    }
+    Json(serde_json::json!({"schema":"westplay-web-diagnostics-v1","convoy":state.observer.data.lock().unwrap().logs(),"capabilities":{"passengerSatisfaction":false,"laneAssist":false,"completeRoster":false}})).into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +222,21 @@ mod tests {
         let data: serde_json::Value = serde_json::from_str(response.split("\r\n\r\n").nth(1).unwrap()).unwrap();
         let token = data["token"].as_str().unwrap();
         assert!(state.authorized(token));
+        assert!(
+            request(&host, "POST", "/dashboard", Some(&origin), r#"{"token":"invalid"}"#).starts_with("HTTP/1.1 401")
+        );
+        state.dashboard.lock().unwrap().publish(77, serde_json::json!({"parkingBrake":false}), Instant::now());
+        let auth = serde_json::json!({"token":token}).to_string();
+        let dashboard = request(&host, "POST", "/dashboard", Some(&origin), &auth);
+        assert!(dashboard.starts_with("HTTP/1.1 200"));
+        assert!(dashboard.contains("parkingBrake"));
+        assert!(!dashboard.contains("pid"));
+        assert!(request(&host, "POST", "/diagnostics", Some(&origin), &auth).starts_with("HTTP/1.1 200"));
+        assert!(
+            request(&host, "POST", "/convoy", Some(&origin), r#"{"token":"invalid","enabled":true}"#)
+                .starts_with("HTTP/1.1 401")
+        );
+
         assert!(request(&host, "POST", "/pair", Some(&origin), &body).starts_with("HTTP/1.1 401"));
         assert!(request(&host, "GET", "/", None, "").contains("frame-ancestors 'none'"));
         state.stop.store(true, Ordering::Release);

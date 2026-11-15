@@ -40,6 +40,8 @@ pub fn interfaces() -> Vec<Interface> {
 }
 
 pub(crate) struct Run {
+    pub dashboard: Mutex<crate::dashboard::Dashboard>,
+    pub observer: crate::convoy::Observer,
     pub host: String,
     pub bind: Ipv4Addr,
     pub stop: AtomicBool,
@@ -57,6 +59,8 @@ pub(crate) struct Run {
 impl Run {
     pub(crate) fn new(host: String, bind: Ipv4Addr, encoder: String) -> Self {
         Self {
+            dashboard: Mutex::new(crate::dashboard::Dashboard::default()),
+            observer: crate::convoy::Observer::default(),
             host,
             bind,
             stop: AtomicBool::new(false),
@@ -74,6 +78,7 @@ impl Run {
     }
     pub fn release(&self) {
         self.connected.store(false, Ordering::Release);
+        self.observer.stop();
         self.inputs.lock().unwrap().push(Input::Cancel);
     }
     pub fn fail(&self, error: String) {
@@ -167,6 +172,15 @@ impl RemoteControl {
             && let Ok(mut pending) = r.state.frame.try_lock()
         {
             pending.put(frame);
+        }
+    }
+    /// Latest snapshot for web only. Never waits behind server work on the frame thread.
+    pub fn publish_dashboard(&self, pid: u32, vehicle: serde_json::Value) {
+        if let Ok(slot) = self.runner.try_lock()
+            && let Some(r) = slot.as_ref()
+            && let Ok(mut data) = r.state.dashboard.try_lock()
+        {
+            data.publish(pid, vehicle, Instant::now());
         }
     }
     pub fn report_error(&self, message: String) {

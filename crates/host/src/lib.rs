@@ -470,6 +470,8 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     let mut browser_gone = false;
     let mut gpu_changed = false;
     let mut game_liveness = Liveness::default();
+    let mut web_sdk_liveness = Liveness::default();
+    let mut last_web_post = Instant::now();
     while !stop.load(Ordering::Relaxed) {
         pump_messages();
         host.heartbeat.fetch_add(1, Ordering::Release);
@@ -1735,6 +1737,27 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
         if last_telemetry_post.elapsed() >= Duration::from_millis(50) {
             last_telemetry_post = Instant::now();
             let plugin = &bridge.bridge().plugin;
+            if last_web_post.elapsed() >= Duration::from_millis(500) {
+                last_web_post = Instant::now();
+                if config.remote.wants_frames() {
+                    // Web-only instruments: independent of the cabin page and video layout.
+                    let sdk_alive = web_sdk_liveness.update(plugin.telemetry.revision() as u64, Instant::now());
+                    let web_data = if game_running && bridge.matches() && sdk_alive {
+                        plugin.telemetry.read().zip(plugin.truck.read()).filter(|(_,truck)|!truck.id.as_str().is_empty()).map(|(t,truck)|{
+                    let extra=bridge.bridge().web_vehicle.read().unwrap_or_default();
+                    let warnings:[Option<bool>;7]=std::array::from_fn(|i|extra.warning(i));
+                    let wear:[Option<f32>;5]=std::array::from_fn(|i|extra.wear(i));
+                    serde_json::json!({"name":truck.name.as_str(),"coach":speakers::is_coach(truck.id.as_str()),"paused":t.paused,"cruise":extra.known(0).then_some(t.cruise_control_speed>0.0),"parkingBrake":extra.known(5).then_some(t.parking_brake),"engine":extra.known(3).then_some(t.engine_enabled),"electric":extra.known(4).then_some(t.electric_enabled),"lowBeam":extra.known(6).then_some(t.low_beam),"highBeam":extra.known(7).then_some(t.high_beam),"leftBlinker":extra.known(8).then_some(t.left_blinker),"rightBlinker":extra.known(9).then_some(t.right_blinker),"fuel":extra.known(1).then_some(t.fuel),"fuelRange":extra.known(2).then_some(t.fuel_range),"wear":wear,"warnings":warnings})
+                })
+                    } else {
+                        None
+                    };
+                    config.remote.publish_dashboard(
+                        if web_data.is_some() { plugin.pid.load(Ordering::Relaxed) } else { 0 },
+                        web_data.unwrap_or(serde_json::Value::Null),
+                    );
+                }
+            }
             // A write the game never finished (it crashed in the middle) reads as nothing: nothing to send. A
             // game that closed leaves its last telemetry behind: not sent (a page reloading would power on).
             if game_running

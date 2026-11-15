@@ -20,6 +20,7 @@ mod scs;
 mod telemetry;
 mod truckersmp;
 mod typing;
+mod web_vehicle;
 
 use std::ffi::{CStr, CString};
 use std::sync::OnceLock;

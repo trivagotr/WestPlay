@@ -8,6 +8,8 @@
 //! - **Everything else** lives in one shared-memory block, [`Bridge`], mapped by both processes. All
 //!   fields are atomics or plain data guarded by a [`SeqLock`], so either side may start first.
 
+pub mod web_vehicle;
+pub use web_vehicle::WebVehicle;
 pub mod cityhash;
 pub mod crash;
 pub mod navigator;
@@ -30,7 +32,7 @@ pub fn bridge_name() -> String {
     format!("Local\\WestPlay.Bridge.v{BRIDGE_VERSION}")
 }
 pub const BRIDGE_MAGIC: u32 = u32::from_le_bytes(*b"WPB7");
-pub const BRIDGE_VERSION: u32 = 28;
+pub const BRIDGE_VERSION: u32 = 29;
 
 /// Size of the app's frames, and the base size of the screen textures in the mod (`westplay_setup::game_mod`
 /// builds them from these).
@@ -262,6 +264,7 @@ pub struct Bridge {
     pub host: HostBlock,
     pub route: RouteBlock,
     pub typing: TypingBlock,
+    pub web_vehicle: SeqLock<WebVehicle>,
 }
 
 /// Written by the game plugin.
@@ -809,6 +812,10 @@ unsafe impl<T: Plain> Sync for SeqLock<T> {}
 pub const SEQLOCK_READ_TRIES: u32 = 100_000;
 
 impl<T: Plain> SeqLock<T> {
+    /// Publication counter, for detecting a stalled producer.
+    pub fn revision(&self) -> u32 {
+        self.sequence.load(Ordering::Acquire)
+    }
     /// Must only be called from one writer at a time.
     pub fn write(&self, value: &T) {
         // Even, whatever a writer that died mid-write left (odd), so odd means "being written" again.

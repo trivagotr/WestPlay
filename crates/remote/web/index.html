@@ -13,7 +13,7 @@
   </head>
   <body>
     <header>
-      <a href="/" aria-label="WestPlay">WestPlay<span> MOBİL EKRAN</span></a
+      <a href="/" aria-label="WestPlay">WestPlay<span> İKİNCİ EKRAN</span></a
       ><span id="status" role="status">Bağlantı bekleniyor</span>
     </header>
     <main>
@@ -48,17 +48,186 @@
         <p id="error" role="alert"></p>
       </section>
       <section id="display" hidden aria-label="WestPlay canlı ekran">
-        <div id="surface">
-          <video
-            id="video"
-            autoplay
-            playsinline
-            muted
-            disablepictureinpicture
-          ></video>
-          <p id="waiting">PC görüntüsü bekleniyor…</p>
+        <div class="dashboard-heading">
+          <div>
+            <p id="vehicle-kind">OYUN VERİLERİ</p>
+            <h1 id="vehicle-name">Araç bağlantısı bekleniyor</h1>
+          </div>
+          <span id="data-state" role="status">Veri bekleniyor</span>
+        </div>
+        <div class="dashboard-grid">
+          <aside
+            class="instrument-panel vehicle-panel"
+            aria-label="Araç bilgileri"
+          >
+            <div class="panel-heading">
+              <span class="panel-index">01</span>
+              <h2>Araç durumu</h2>
+            </div>
+            <dl class="state-list">
+              <div>
+                <dt>Cruise control</dt>
+                <dd id="state-cruise">—</dd>
+              </div>
+              <div>
+                <dt>El freni</dt>
+                <dd id="state-parkingBrake">—</dd>
+              </div>
+              <div>
+                <dt>Motor</dt>
+                <dd id="state-engine">—</dd>
+              </div>
+              <div>
+                <dt>Elektrik</dt>
+                <dd id="state-electric">—</dd>
+              </div>
+              <div>
+                <dt>Kısa far</dt>
+                <dd id="state-lowBeam">—</dd>
+              </div>
+              <div>
+                <dt>Uzun far</dt>
+                <dd id="state-highBeam">—</dd>
+              </div>
+              <div>
+                <dt>Sol sinyal</dt>
+                <dd id="state-leftBlinker">—</dd>
+              </div>
+              <div>
+                <dt>Sağ sinyal</dt>
+                <dd id="state-rightBlinker">—</dd>
+              </div>
+            </dl>
+            <div class="fuel-grid">
+              <div><span>YAKIT</span><strong id="fuel-value">—</strong></div>
+              <div><span>MENZİL</span><strong id="range-value">—</strong></div>
+            </div>
+            <h3>Bileşen hasarı</h3>
+            <div class="wear-list">
+              <div>
+                <div class="wear-label">
+                  <span>Motor</span><strong id="wear-0">—</strong>
+                </div>
+                <div class="wear-track"><i id="wear-bar-0"></i></div>
+              </div>
+              <div>
+                <div class="wear-label">
+                  <span>Şanzıman</span><strong id="wear-1">—</strong>
+                </div>
+                <div class="wear-track"><i id="wear-bar-1"></i></div>
+              </div>
+              <div>
+                <div class="wear-label">
+                  <span>Gövde</span><strong id="wear-2">—</strong>
+                </div>
+                <div class="wear-track"><i id="wear-bar-2"></i></div>
+              </div>
+              <div>
+                <div class="wear-label">
+                  <span>Şasi</span><strong id="wear-3">—</strong>
+                </div>
+                <div class="wear-track"><i id="wear-bar-3"></i></div>
+              </div>
+              <div>
+                <div class="wear-label">
+                  <span>Tekerlek</span><strong id="wear-4">—</strong>
+                </div>
+                <div class="wear-track"><i id="wear-bar-4"></i></div>
+              </div>
+            </div>
+            <h3>Uyarılar</h3>
+            <ul id="warning-list" class="warning-list">
+              <li class="quiet">Veri bekleniyor</li>
+            </ul>
+          </aside>
+          <section class="screen-panel" aria-label="Canlı GPS ve medya">
+            <div class="screen-heading">
+              <span>CANLI EKRAN</span><span>GPS / MEDYA</span>
+            </div>
+            <div id="surface">
+              <video
+                id="video"
+                autoplay
+                playsinline
+                muted
+                disablepictureinpicture
+              ></video>
+              <p id="waiting">PC görüntüsü bekleniyor…</p>
+            </div>
+          </section>
+          <aside
+            class="instrument-panel convoy-panel"
+            aria-label="Konvoy ve yolcular"
+          >
+            <div class="panel-heading">
+              <span class="panel-index">02</span>
+              <h2>Yakın çevre</h2>
+              <span class="tag">DENEYSEL</span>
+            </div>
+            <div class="radar-wrap">
+              <svg
+                class="radar"
+                viewBox="0 0 100 100"
+                role="img"
+                aria-label="Kuzey yukarı, araçlar kendi aracına göre konumlandırılır"
+              >
+                <defs>
+                  <pattern
+                    id="grid"
+                    width="12.5"
+                    height="12.5"
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <path
+                      d="M 12.5 0 L 0 0 0 12.5"
+                      fill="none"
+                      stroke="#26352f"
+                      stroke-width=".25"
+                    />
+                  </pattern>
+                </defs>
+                <rect width="100" height="100" fill="url(#grid)" />
+                <circle class="radar-ring" cx="50" cy="50" r="42" />
+                <circle class="radar-ring" cx="50" cy="50" r="21" />
+                <path class="radar-axis" d="M50 8V92M8 50H92" />
+                <text class="north" x="50" y="7">K</text>
+                <g id="friend-points"></g>
+                <circle class="own-dot" cx="50" cy="50" r="2.8" />
+                <path class="own-arrow" d="M48.5 46L50 43L51.5 46Z" /></svg
+              ><span class="radar-scale" id="radar-scale">100 m</span
+              ><span class="radar-own">● SEN</span>
+            </div>
+            <div class="convoy-summary">
+              <strong id="friend-count">0 araç</strong
+              ><span id="sample-count">Henüz ölçüm yok</span>
+            </div>
+            <p id="convoy-state" role="status">Tarama kapalı</p>
+            <ul id="friend-list" class="friend-list"></ul>
+            <div class="convoy-buttons">
+              <button id="convoy-start" type="button">Arkadaşları ara</button
+              ><button id="convoy-stop" type="button" disabled>Durdur</button>
+            </div>
+            <p class="panel-note">
+              120 sn test · yalnızca yakından okunabilen araçlar. Konvoy üyeliği
+              ve tüm oyuncular henüz doğrulanmıyor. Kaybolan konum tutulmaz.
+            </p>
+            <div class="coach-card">
+              <div class="panel-heading">
+                <span class="panel-index">03</span>
+                <h2>Yolcular</h2>
+              </div>
+              <strong id="coach-status">Yolcu verisi alınamıyor</strong>
+              <p>
+                Mutluluk ve durak gecikmesi için doğrulanmış veri kaynağı henüz
+                yok. Şerit takip durumu da alınamıyor.
+              </p>
+            </div>
+          </aside>
         </div>
         <nav aria-label="Ekran araçları">
+          <button id="focus-mode" type="button" aria-pressed="false">
+            Bilgileri gizle</button
+          ><button id="diagnostics" type="button">Log indir ↓</button>
           <button
             id="fit"
             type="button"

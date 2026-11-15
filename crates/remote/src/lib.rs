@@ -1,4 +1,6 @@
 mod control;
+pub mod convoy;
+pub mod dashboard;
 mod encoder;
 mod frame;
 mod h264;

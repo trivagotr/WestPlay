@@ -1,3 +1,4 @@
+import { createDashboard } from "./dashboard.js";
 import { containedPoint, localOffer, scrollDelta } from "./geometry.js";
 const $ = (id) => document.getElementById(id);
 let pc = null,
@@ -56,7 +57,9 @@ function cancel() {
   pointer = null;
   send({ type: "cancel" });
 }
+const dashboard = createDashboard({ request, getToken: () => token });
 function close() {
+  dashboard.stop();
   clearInterval(heartbeat);
   heartbeat = null;
   if (channel?.readyState === "open")
@@ -196,6 +199,7 @@ async function connect() {
     $("pairing").hidden = true;
     $("display").hidden = false;
     document.body.classList.add("viewing");
+    dashboard.start();
   } catch (error) {
     // A newer attempt owns the global connection; old failures must not close it.
     if (pc !== connection) return;
