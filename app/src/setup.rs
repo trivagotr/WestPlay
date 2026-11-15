@@ -156,7 +156,13 @@ pub async fn setup_state(store: State<'_, SetupStore>) -> Result<SetupState, Str
         let game = record.game(Kind::Ets2).or_else(|| games.first().cloned());
         let outdated: Vec<GameInfo> = games
             .iter()
-            .filter(|game| record.finished && is_update(record.version_of(game)))
+            .filter(|game| {
+                let plugin_current = inner
+                    .plugin
+                    .as_deref()
+                    .is_none_or(|ours| matches!(plugin::state(game, ours), Ok(plugin::State::Current)));
+                record.finished && is_update(record.version_of(game), plugin_current)
+            })
             .map(GameInfo::from)
             .collect();
         Ok(SetupState {
@@ -603,13 +609,15 @@ fn install_plugin(game: &Game, ours: &Path, administrator: bool) -> PluginOutcom
     }
 }
 
+mod update;
+
 /// This WestPlay's version.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Whether this WestPlay is another version than the one that put its plugin and mod into the game
-/// (`installed_by`; none: one from before versions were kept). Never in a development build.
-fn is_update(installed_by: Option<&str>) -> bool {
-    !cfg!(debug_assertions) && installed_by != Some(VERSION)
+/// Whether this WestPlay's version or installed plugin/probe files need updating. A local release
+/// can retain its version string while changing the bridge ABI. Never updates development plugins.
+fn is_update(installed_by: Option<&str>, plugin_current: bool) -> bool {
+    update::needed(!cfg!(debug_assertions), VERSION, installed_by, plugin_current)
 }
 
 /// The onboarding was gone through to its end.
