@@ -1,6 +1,6 @@
 # WestPlay web ikinci ekran
 
-16 Kasım 2026. Oyun içindeki tabletin arayüzü ve APK değiştirilmedi. Bu sürüm yalnızca tarayıcıda bağımsız bilgi panelleri ekler.
+16 Kasım 2026. Oyun içindeki tabletin görünümü ve APK değiştirilmedi. Harita modülüne yalnızca web için ekran koordinatı döndüren görünmez bir köprü eklendi; oyun içi haritaya oyuncu katmanı veya işaret eklenmedi. Bu sürüm yalnızca tarayıcıda bağımsız bilgi panelleri ekler.
 
 ## Başlatma
 
@@ -20,7 +20,7 @@ Aynı Konvoydaki arkadaşınızla yakın konumdayken webde Arkadaşları ara dü
 
 Yalnızca ETS2 1.62.3.3 dosyasının SHA256 055ec5343d53bd427de54b06eca74937f0d348dbb0c5d71862edddcf45e2db66 sürümü kabul edilir. Başka sürümde okuyucu reddeder. Oyun belleğine yazılmaz, kod enjekte edilmez, oyun fonksiyonu çağrılmaz.
 
-Yakın çevre çizimi kuzey yukarıdır, merkez kendi aracınızdır; diğer işaretlerin yönü ve mesafesi kendi aracınıza göredir. GPS yol haritasının üstüne yapıştırılan işaretler değildir. Hesap/oyuncu adı gösterilmez; araç numaraları kalıcı kimlik değildir. Erişilen kaynak yakındaki oyuncu aracı adaylarıdır; tam Konvoy üyeliği veya tüm harita kapsamı doğrulanmış değildir. Önceki testte 6 saniyelik görünürlük boşlukları vardı. Yeni web entegrasyonu henüz canlı Konvoyda denenmedi. Kendi araç eşleşmesi belirsizse veya örnek eksikse işaretler tutulmaz.
+Ayrı radar kaldırıldı. Arkadaş işaretleri doğrudan tarayıcıdaki mevcut GPS haritasının üzerinde görünür. Konumlar PC’deki aynı MapLibre kamerasıyla hesaplanır; haritanın kaydırma, yakınlaştırma, dönüş ve eğimiyle birlikte yer değiştirir. Harita açık değilse veya konum doğrulanamıyorsa işaret çizilmez. Hesap/oyuncu adı gösterilmez; araç numaraları kalıcı kimlik değildir. Erişilen kaynak yakındaki oyuncu aracı adaylarıdır; tam Konvoy üyeliği veya tüm harita kapsamı doğrulanmış değildir. Önceki testte 6 saniyelik görünürlük boşlukları vardı. GPS üzerinde işaret gösteren bu yeni entegrasyon henüz canlı Konvoyda denenmedi. Kendi araç eşleşmesi belirsizse veya örnek eksikse işaretler tutulmaz.
 
 ## Log gönderme
 
@@ -36,3 +36,7 @@ Geri bildirimde araç modeli, kamyon/otobüs, arkadaşla aynı Konvoyda olup olm
 - Konvoy yardımcısının kendi belleğinde testi geçti; yeni entegrasyon canlı Konvoyda denenmedi.
 - EXE/DLL release derlemesi başarılı.
 - Genel workspace testinde değişmeyen places::tests::names_a_folder_as_windows_does testi bu bilgisayardaki C:\Windows / C:\WINDOWS harf farkı nedeniyle başarısız. Bu kaynak dosyası başlangıç sürümüyle aynı; genel testlerin hepsi geçti denmiyor.
+
+## GPS düzeltmesinin testi
+
+Ayrı radar bulunmuyor. Gerçek MapLibre motoruyla kaydırma/dönüş/eğim/yakınlaştırma ve video Doldur/Sığdır eşleşmesi doğrulandı; PC haritasının katman sayısı sabit kaldı. Tekrarlanan/eski yanıtlar işaretin ömrünü uzatmıyor. GPS bilgisi ayrı, sırasız ve 150 ms paket ömürlü WebRTC kanalından aktarılıyor; normal dokunma/klavye kanalı aynı kalıyor. Kayıp ekran konumları kısa sürede temizleniyor. 520 UI ve 8 web testi geçti; yeni host/remote testleri de geçti. Canlı oyun testi kullanıcıyı bekliyor.

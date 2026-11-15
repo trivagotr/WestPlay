@@ -1,3 +1,4 @@
+import type { WebMapProjection, WebMapRequest } from './webMap'
 import type { PhoneState, PhoneNotificationEvent } from './phone'
 import type { CustomWallpaper, IconSet } from './customize'
 
@@ -93,6 +94,7 @@ export type KeybindAction =
   'volumeUp' | 'volumeDown' | 'playPause' | 'nextTrack' | 'previousTrack' | 'brightnessDown' | 'brightnessUp'
 
 export type HostMessage =
+  | ({ type: 'webMapProject' } & WebMapRequest)
   | { type: 'phoneState'; state: PhoneState }
   | { type: 'phoneNotification'; event: PhoneNotificationEvent }
   | { type: 'telemetry'; data: Telemetry }
@@ -311,6 +313,7 @@ export function toEqualizer(value: unknown): Equalizer {
 }
 
 export type PageMessage =
+  | { type: 'webMapProjection'; projection: WebMapProjection }
   | { type: 'ready' }
   /** A startup stage reached (the boot screens shown), for the host's startup log. */
   | { type: 'startup'; stage: string }

@@ -41,6 +41,7 @@ pub fn interfaces() -> Vec<Interface> {
 
 pub(crate) struct Run {
     pub dashboard: Mutex<crate::dashboard::Dashboard>,
+    pub projection: Mutex<crate::projection::ProjectionStore>,
     pub observer: crate::convoy::Observer,
     pub host: String,
     pub bind: Ipv4Addr,
@@ -60,6 +61,7 @@ impl Run {
     pub(crate) fn new(host: String, bind: Ipv4Addr, encoder: String) -> Self {
         Self {
             dashboard: Mutex::new(crate::dashboard::Dashboard::default()),
+            projection: Mutex::new(crate::projection::ProjectionStore::default()),
             observer: crate::convoy::Observer::default(),
             host,
             bind,
@@ -79,6 +81,7 @@ impl Run {
     pub fn release(&self) {
         self.connected.store(false, Ordering::Release);
         self.observer.stop();
+        self.projection.lock().unwrap().clear();
         self.inputs.lock().unwrap().push(Input::Cancel);
     }
     pub fn fail(&self, error: String) {
@@ -181,6 +184,34 @@ impl RemoteControl {
             && let Ok(mut data) = r.state.dashboard.try_lock()
         {
             data.publish(pid, vehicle, Instant::now());
+        }
+    }
+    /// Ask the existing GPS for screen locations; does not draw anything in the cabin.
+    pub fn map_projection_request(&self) -> Option<serde_json::Value> {
+        let slot = self.runner.try_lock().ok()?;
+        let state = &slot.as_ref()?.state;
+        let now = Instant::now();
+        if !state.connected.load(Ordering::Acquire) || state.dashboard.try_lock().ok()?.pid(now).is_none() {
+            state.projection.try_lock().ok()?.clear();
+            return None;
+        }
+        let Some((key, points)) = state.observer.projection_source(now) else {
+            state.projection.try_lock().ok()?.clear();
+            return None;
+        };
+        let id = state.projection.try_lock().ok()?.request(key, now);
+        Some(serde_json::json!({"type":"webMapProject","id":id,"points":points}))
+    }
+    pub fn publish_map_projection(&self, reply: crate::projection::MapProjection) {
+        if let Ok(slot) = self.runner.try_lock()
+            && let Some(r) = slot.as_ref()
+        {
+            let now = Instant::now();
+            if let Some((key, _)) = r.state.observer.projection_source(now)
+                && let Ok(mut projection) = r.state.projection.try_lock()
+            {
+                projection.accept(key, reply, now);
+            }
         }
     }
     pub fn report_error(&self, message: String) {

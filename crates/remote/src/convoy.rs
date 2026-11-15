@@ -12,6 +12,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 #[derive(Default)]
 pub struct Convoy {
     players: Vec<Value>,
+    world: Vec<Value>,
     at: Option<Instant>,
     own_id: Option<String>,
     pub status: String,
@@ -40,6 +41,7 @@ impl Convoy {
     }
     pub fn clear(&mut self, status: &str) {
         self.players.clear();
+        self.world.clear();
         self.at = None;
         self.status = status.into();
         self.event(status, json!({}));
@@ -78,6 +80,12 @@ impl Convoy {
                 return None;
             }
             self.own_id = Some(own_id.into());
+            self.world = positions
+                .iter()
+                .filter(|(id, _, _)| *id != own_id)
+                .enumerate()
+                .map(|(i, (_, x, z))| json!({"marker":i+1,"x":x,"z":z,"distance":(x-ox).hypot(z-oz)}))
+                .collect();
             Some(
                 positions
                     .iter()
@@ -101,6 +109,12 @@ impl Convoy {
         let fresh = self.at.is_some_and(|at| now.saturating_duration_since(at) <= Duration::from_secs(2));
         json!({"status":self.status,"fresh":fresh,"players":if fresh{self.players.clone()}else{vec![]},"samples":self.samples,"gaps":self.gaps,"completeRosterVerified":false})
     }
+    pub(crate) fn projection_points(&self, now: Instant) -> Option<(u64, Vec<Value>)> {
+        (self.status == "observing"
+            && !self.world.is_empty()
+            && self.at.is_some_and(|at| now.saturating_duration_since(at) <= Duration::from_secs(2)))
+        .then(|| (self.samples, self.world.clone()))
+    }
     pub fn logs(&self) -> Vec<Value> {
         self.events.iter().cloned().collect()
     }
@@ -115,6 +129,11 @@ impl Default for Observer {
     }
 }
 impl Observer {
+    pub(crate) fn projection_source(&self, now: Instant) -> Option<((u64, u64), Vec<Value>)> {
+        let data = self.data.lock().unwrap();
+        let (sample, points) = data.projection_points(now)?;
+        Some(((self.generation.load(Ordering::Acquire), sample), points))
+    }
     fn begin(&self) -> u64 {
         let mut data = self.data.lock().unwrap();
         let generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;

@@ -6,6 +6,7 @@ mod frame;
 mod h264;
 mod input;
 mod peer;
+pub mod projection;
 mod server;
 mod session;
 

@@ -27,6 +27,10 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/geometry.js")) }),
         )
         .route("/style.css", get(|| async { asset("text/css; charset=utf-8", include_str!("../web/style.css")) }))
+        .route(
+            "/gps-overlay.js",
+            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/gps-overlay.js")) }),
+        )
         .route("/pair", post(pair))
         .route("/offer", post(offer))
         .route("/dashboard", post(dashboard))

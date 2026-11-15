@@ -145,6 +145,10 @@
               <span>CANLI EKRAN</span><span>GPS / MEDYA</span>
             </div>
             <div id="surface">
+              <svg
+                id="gps-overlay"
+                aria-label="GPS üzerindeki arkadaş araçları"
+              ></svg>
               <video
                 id="video"
                 autoplay
@@ -161,42 +165,12 @@
           >
             <div class="panel-heading">
               <span class="panel-index">02</span>
-              <h2>Yakın çevre</h2>
+              <h2>Konvoy</h2>
               <span class="tag">DENEYSEL</span>
             </div>
-            <div class="radar-wrap">
-              <svg
-                class="radar"
-                viewBox="0 0 100 100"
-                role="img"
-                aria-label="Kuzey yukarı, araçlar kendi aracına göre konumlandırılır"
-              >
-                <defs>
-                  <pattern
-                    id="grid"
-                    width="12.5"
-                    height="12.5"
-                    patternUnits="userSpaceOnUse"
-                  >
-                    <path
-                      d="M 12.5 0 L 0 0 0 12.5"
-                      fill="none"
-                      stroke="#26352f"
-                      stroke-width=".25"
-                    />
-                  </pattern>
-                </defs>
-                <rect width="100" height="100" fill="url(#grid)" />
-                <circle class="radar-ring" cx="50" cy="50" r="42" />
-                <circle class="radar-ring" cx="50" cy="50" r="21" />
-                <path class="radar-axis" d="M50 8V92M8 50H92" />
-                <text class="north" x="50" y="7">K</text>
-                <g id="friend-points"></g>
-                <circle class="own-dot" cx="50" cy="50" r="2.8" />
-                <path class="own-arrow" d="M48.5 46L50 43L51.5 46Z" /></svg
-              ><span class="radar-scale" id="radar-scale">100 m</span
-              ><span class="radar-own">● SEN</span>
-            </div>
+            <p id="gps-overlay-status" class="gps-overlay-status" role="status">
+              Arkadaşlar GPS üzerinde gösterilir
+            </p>
             <div class="convoy-summary">
               <strong id="friend-count">0 araç</strong
               ><span id="sample-count">Henüz ölçüm yok</span>

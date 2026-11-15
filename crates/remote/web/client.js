@@ -1,3 +1,4 @@
+import { createGpsOverlay } from "./gps-overlay.js";
 import { createDashboard } from "./dashboard.js";
 import { containedPoint, localOffer, scrollDelta } from "./geometry.js";
 const $ = (id) => document.getElementById(id);
@@ -28,6 +29,7 @@ $("fit").onclick = () => {
   scrollPoint = null;
   fitMode = fitMode === "fill" ? "contain" : "fill";
   applyFit();
+  gpsOverlay.redraw();
   try {
     localStorage.setItem("westplay.videoFit", fitMode);
   } catch {}
@@ -57,9 +59,17 @@ function cancel() {
   pointer = null;
   send({ type: "cancel" });
 }
+const gpsOverlay = createGpsOverlay({
+  surface: $("surface"),
+  video: $("video"),
+  getFit: () => fitMode,
+  svg: $("gps-overlay"),
+  status: $("gps-overlay-status"),
+});
 const dashboard = createDashboard({ request, getToken: () => token });
 function close() {
   dashboard.stop();
+  gpsOverlay.clear(true);
   clearInterval(heartbeat);
   heartbeat = null;
   if (channel?.readyState === "open")
@@ -107,6 +117,22 @@ async function connect() {
   try {
     connection.addTransceiver("video", { direction: "recvonly" });
     channel = connection.createDataChannel("control", { ordered: true });
+    // Camera positions expire in SCTP; lost old frames must never block newer ones or controls.
+    const mapChannel = connection.createDataChannel("map-overlay", {
+      ordered: false,
+      maxPacketLifeTime: 150,
+    });
+    mapChannel.onmessage = (event) => {
+      if (pc !== connection) return;
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "mapOverlay")
+          gpsOverlay.receive(message.projection);
+      } catch {}
+    };
+    mapChannel.onclose = () => {
+      if (pc === connection) gpsOverlay.clear();
+    };
     channel.onopen = () => {
       if (pc !== connection) return;
       lastPong = performance.now();
@@ -122,6 +148,7 @@ async function connect() {
       status("Canlı · yerel ağ");
     };
     channel.onmessage = (event) => {
+      if (pc !== connection) return;
       if (event.data === "pong") {
         lastPong = performance.now();
         $("latency").textContent = `RTT ${Math.round(lastPong - pingAt)} ms`;

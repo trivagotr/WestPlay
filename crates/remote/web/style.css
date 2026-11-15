@@ -511,67 +511,6 @@ body.viewing #surface {
   padding: 4px;
   border-radius: 4px;
 }
-.radar-wrap {
-  position: relative;
-  margin: 14px 0;
-  border: 1px solid #ffffff0b;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #0b130e;
-}
-.radar {
-  display: block;
-  width: 100%;
-  max-height: 235px;
-}
-.radar-ring,
-.radar-axis {
-  fill: none;
-  stroke: #38513f;
-  stroke-width: 0.25;
-}
-.radar-axis {
-  stroke-dasharray: 1 2;
-}
-.north {
-  font-size: 3px;
-  fill: #8b9c90;
-  text-anchor: middle;
-}
-.own-dot {
-  fill: #d5e1d5;
-  stroke: #0b130e;
-  stroke-width: 0.8;
-}
-.own-arrow {
-  fill: #92a697;
-}
-#friend-points circle {
-  fill: var(--green);
-  stroke: #0b130e;
-  stroke-width: 0.5;
-}
-#friend-points text {
-  font-size: 3px;
-  fill: #14220e;
-  text-anchor: middle;
-  font-weight: 700;
-}
-.radar-scale,
-.radar-own {
-  position: absolute;
-  bottom: 7px;
-  font-size: 8px;
-  color: #8b9c90;
-}
-.radar-scale {
-  right: 8px;
-}
-.radar-own {
-  left: 8px;
-  font-size: 7px;
-  letter-spacing: 1px;
-}
 .convoy-summary {
   display: flex;
   align-items: baseline;
@@ -802,9 +741,6 @@ body.viewing #display:fullscreen #surface {
   .state-list > div {
     min-height: 27px;
   }
-  .radar {
-    max-height: 140px;
-  }
   body.viewing #display {
     gap: 6px;
   }
@@ -829,4 +765,35 @@ body.viewing #surface {
     flex: 1;
     aspect-ratio: auto;
   }
+}
+
+#gps-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gps-friend-marker {
+  fill: #39c8ed;
+  stroke: #effaff;
+  stroke-width: 2px;
+  filter: drop-shadow(0 1px 3px #000b);
+}
+.gps-friend-label {
+  fill: #fff;
+  stroke: #0b1722;
+  stroke-width: 3px;
+  paint-order: stroke fill;
+  font:
+    600 12px "Segoe UI",
+    sans-serif;
+}
+.gps-overlay-status {
+  margin: 14px 0;
+  font-size: 11px;
+  color: #9ebeb0;
+  line-height: 1.6;
 }

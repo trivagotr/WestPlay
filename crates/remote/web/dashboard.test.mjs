@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { vehicleView, relativePoints, DiagnosticLog } from "./dashboard.js";
+import { vehicleView, DiagnosticLog } from "./dashboard.js";
 test("absent and expired fields stay unknown rather than off or zero", () => {
   assert.equal(vehicleView({ connected: false }).cruise, null);
   assert.equal(
@@ -24,14 +24,6 @@ test("absent and expired fields stay unknown rather than off or zero", () => {
   assert.equal(v.fuel, 0);
   assert.deepEqual(v.wear, [0, 20, null, null, null]);
   assert.deepEqual(v.warnings, [false, null, true, null, null, null, null]);
-});
-test("relative plot has north up, adapts extent, and rejects invalid positions", () => {
-  const v = relativePoints([{ marker: 1, dx: 30, dz: -40, distance: 50 }]);
-  assert.equal(v.points.length, 1);
-  assert.equal(v.extent, 100);
-  assert.equal(v.points[0].x, 62.6);
-  assert.equal(v.points[0].y, 33.2);
-  assert.equal(relativePoints([{ dx: NaN, dz: 2 }]).points.length, 0);
 });
 test("export ring is bounded and drops credentials payloads and absolute coordinates", () => {
   const log = new DiagnosticLog(3);

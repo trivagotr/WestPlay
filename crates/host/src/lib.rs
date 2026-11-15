@@ -472,6 +472,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     let mut game_liveness = Liveness::default();
     let mut web_sdk_liveness = Liveness::default();
     let mut last_web_post = Instant::now();
+    let mut last_map_projection = Instant::now();
     while !stop.load(Ordering::Relaxed) {
         pump_messages();
         host.heartbeat.fetch_add(1, Ordering::Release);
@@ -944,6 +945,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
                     }
                 }
                 Some(PageMessage::Startup { stage }) => startup::mark(&format!("page: {stage}")),
+                Some(PageMessage::WebMapProjection { projection }) => config.remote.publish_map_projection(projection),
                 Some(PageMessage::Guidance { line }) => log!("route: the cab's guidance, {line}"),
                 Some(PageMessage::TruckStrip { strip }) => {
                     let mut settings = config.settings.get();
@@ -1734,6 +1736,12 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
             }
         }
 
+        if last_map_projection.elapsed() >= Duration::from_millis(100) {
+            last_map_projection = Instant::now();
+            if let Some(request) = config.remote.map_projection_request() {
+                let _ = webview.post_json(&request.to_string());
+            }
+        }
         if last_telemetry_post.elapsed() >= Duration::from_millis(50) {
             last_telemetry_post = Instant::now();
             let plugin = &bridge.bridge().plugin;
@@ -2386,19 +2394,32 @@ fn cab_webview(stage: &Stage, width: u32, height: u32, user_data: &std::path::Pa
 #[derive(Debug, PartialEq, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum PageMessage {
+    WebMapProjection {
+        projection: westplay_remote::projection::MapProjection,
+    },
     /// Posted when the page (re)loads.
     Ready,
     /// A startup stage the page reached (the boot screens shown), for the startup log (`startup`).
-    Startup { stage: String },
+    Startup {
+        stage: String,
+    },
     /// The cab's guidance (the next turn it shows, at which node, and how far), every 30 s while there's a route, for
     /// the log (ui/src/cabin/maps/guidanceLog.ts).
-    Guidance { line: String },
+    Guidance {
+        line: String,
+    },
     /// Whether WestPlay is open on the truck's screen: posted as the page loads and whenever it changes.
-    Westplay { open: bool },
+    Westplay {
+        open: bool,
+    },
     /// The wallpaper chosen in the cab's Settings (an id: `wallpapers.ts`), to keep with the settings.
-    Wallpaper { id: String },
+    Wallpaper {
+        id: String,
+    },
     /// The truck's information bar beside WestPlay, kept or not, chosen in the cab's Settings (Appearance).
-    TruckStrip { strip: settings::TruckStrip },
+    TruckStrip {
+        strip: settings::TruckStrip,
+    },
     /// The players' tone, set in the cab's Settings (Equalizer): the player's curve (bass, mid and treble, dB
     /// each), and whether it plays (Custom) or the speakers as tuned (Recommended).
     Equalizer {
@@ -2409,41 +2430,77 @@ enum PageMessage {
     },
     /// The music's spectrum wanted (the cab's Equalizer open) or not: the players measure it, and it's passed
     /// on to the page as they say it.
-    Spectrum { on: bool },
+    Spectrum {
+        on: bool,
+    },
     /// The screen's brightness, set in the cab's Settings (Appearance): the slider's place, 0 to 1
     /// (`brightness::light`). Posted as the page loads and whenever it changes.
-    Brightness { level: f32 },
+    Brightness {
+        level: f32,
+    },
     /// Whether what's under the cursor is light (it's drawn dark there: `cursor`).
-    CursorLight { light: bool },
+    CursorLight {
+        light: bool,
+    },
     /// Where the cursor may be seen (`cursor::Area`): the CarPlay area, under its black corners.
-    CursorArea { area: cursor::Area },
+    CursorArea {
+        area: cursor::Area,
+    },
     /// A command for YouTube's player (`youtube`): what to play, where it shows, and so on.
-    Youtube { command: youtube::Command },
+    Youtube {
+        command: youtube::Command,
+    },
     /// A command for Spotify's web player (`spotify`): its sign-in, a question, its controls.
-    Spotify { command: spotify::Command },
+    Spotify {
+        command: spotify::Command,
+    },
     /// A command for Apple Music's web player (`appleMusic`): its sign-in, a question, its controls.
-    AppleMusic { command: apple_music::Command },
+    AppleMusic {
+        command: apple_music::Command,
+    },
     /// A command for YouTube Music's web player (`youtubeMusic`): its sign-in, a question, its controls.
-    YoutubeMusic { command: youtube_music::Command },
+    YoutubeMusic {
+        command: youtube_music::Command,
+    },
     /// A command for Player's own player (`player`): what to play from the music folder, its controls.
-    Player { command: music_folder::Command },
+    Player {
+        command: music_folder::Command,
+    },
     /// What the Safari app asks of its pages (`safari`): a tab shown, loaded, typed into, and so on.
-    Safari { command: safari::Command },
+    Safari {
+        command: safari::Command,
+    },
     /// The text field selected on the page, a number that changes with every selection (0: none), for the
     /// player's own keyboard to type into (`typing`).
-    Typing { selection: u32 },
+    Typing {
+        selection: u32,
+    },
     /// A change to the game's route (Maps' search): at a map node (its uid in hex) to go or add a stop; `id`
     /// comes back with the game's answer (`route_change`).
-    Route { id: u32, action: PageRouteAction, node: Option<String> },
+    Route {
+        id: u32,
+        action: PageRouteAction,
+        node: Option<String>,
+    },
     /// The routes to a map node (its uid in hex), or to `also` if a route comes to that last (the other end of the lane
     /// past the place), from where the truck is, to offer before Go (`planner`); `id` comes back with them.
-    Routes { id: u32, node: String, also: Option<String> },
+    Routes {
+        id: u32,
+        node: String,
+        also: Option<String>,
+    },
     /// Go along the route at `index` of those offered for request `id`: handed to the game's GPS
     /// (`handover`); `{"type":"followed"}` comes back once the game follows it, or won't.
-    Follow { id: u32, index: usize },
+    Follow {
+        id: u32,
+        index: usize,
+    },
     /// What stopping at each of these map nodes (uids in hex) would add to the trip the game's route makes
     /// (`planner`); `{"type":"detours"}` comes back with `id`.
-    Detours { id: u32, nodes: Vec<String> },
+    Detours {
+        id: u32,
+        nodes: Vec<String>,
+    },
 }
 
 /// A route being handed to the game's GPS: the page's request, the hand-over (the route picked and the

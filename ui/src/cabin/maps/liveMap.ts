@@ -1,3 +1,6 @@
+import { projectWebMap } from './webProjection'
+import { postToHost } from '../../shared/host'
+import type { WebMapRequest } from '../../shared/webMap'
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker.js?url'
@@ -702,6 +705,7 @@ export function showLiveMap(
   appearance: Appearance,
   interactive: boolean,
 ): () => void {
+  listenForWebProjection()
   collectSamples()
   if (live?.data !== data) {
     if (frame !== null) cancelAnimationFrame(frame)
@@ -709,7 +713,8 @@ export function showLiveMap(
     live?.map.remove()
     live = create(data, appearance)
     // Development: the map, for inspecting it from the browser's console.
-    if (import.meta.env.DEV) Object.assign(window, { westplayMap: live.map, westplayRaised: live.raised, westplayMeshes: live.meshes })
+    if (import.meta.env.DEV)
+      Object.assign(window, { westplayMap: live.map, westplayRaised: live.raised, westplayMeshes: live.meshes })
   }
   live.wanted = appearance
   syncAppearance(live)
@@ -1097,7 +1102,8 @@ function updateCamera(target: LiveMap, now: number, dt: number) {
     puck.setOffset(target.raised.screenLift(shown[0], shown[1], target.puckHeight))
     // The flag at the end of the route too, on the road the route ends on.
     const end = target.routeShown?.spans.at(-1)?.at(-1)
-    if (end) target.destination.setOffset(target.raised.screenLift(end[0], end[1], target.routeShown?.heights.get(end) ?? 0))
+    if (end)
+      target.destination.setOffset(target.raised.screenLift(end[0], end[1], target.routeShown?.heights.get(end) ?? 0))
   }
   if (!puck.getElement().isConnected) puck.addTo(map)
 
@@ -1168,3 +1174,60 @@ import.meta.hot?.dispose(() => {
   live?.element.remove()
   live?.map.remove()
 })
+
+// Read-only projection for web video markers. No source/layer/marker is added to the cabin GPS.
+let webProjectionListener: ((event: { data: unknown }) => void) | null = null
+function listenForWebProjection() {
+  const webview = window.chrome?.webview
+  if (!webview || webProjectionListener) return
+  const visible = (element: Element) => {
+    for (let at: Element | null = element; at; at = at.parentElement) {
+      const style = getComputedStyle(at)
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) < 0.01) return false
+    }
+    return true
+  }
+  webProjectionListener = (event) => {
+    const message = event.data as Partial<WebMapRequest> & { type?: string }
+    if (
+      message?.type !== 'webMapProject' ||
+      !Number.isSafeInteger(message.id) ||
+      !Array.isArray(message.points) ||
+      message.points.length > 128
+    )
+      return
+    const request = message as WebMapRequest
+    const current = live
+    const rect = current?.element.getBoundingClientRect()
+    const canvas = current?.map.getCanvas()
+    const blockers = Array.from(
+      document.querySelectorAll(
+        '.guidance,.map-controls,.map-search-top,.destinations,.destination-card,.directions,.map-confirmation',
+      ),
+    )
+      .filter(visible)
+      .map((e) => e.getBoundingClientRect())
+    const view =
+      current && rect && canvas && hosts.length > 0 && current.element.isConnected && visible(current.element)
+        ? {
+            rect,
+            width: canvas.clientWidth,
+            height: canvas.clientHeight,
+            frameWidth: window.innerWidth,
+            frameHeight: window.innerHeight,
+            project: (x: number, z: number) => current.map.project(toLngLat(x, z)),
+            occluded: (x: number, y: number) => {
+              if (blockers.some((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)) return true
+              const hit = document.elementFromPoint(x, y)
+              return hit !== null && !current.element.contains(hit) && !hit.contains(current.element)
+            },
+          }
+        : null
+    postToHost({ type: 'webMapProjection', projection: projectWebMap(request, view) })
+  }
+  webview.addEventListener('message', webProjectionListener)
+}
+if (import.meta.hot)
+  import.meta.hot.dispose(() => {
+    if (webProjectionListener) window.chrome?.webview?.removeEventListener('message', webProjectionListener)
+  })

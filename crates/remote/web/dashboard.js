@@ -32,31 +32,6 @@ export function vehicleView(snapshot = {}) {
     warnings: Array.from({ length: 7 }, (_, i) => flag(v.warnings?.[i])),
   };
 }
-export function relativePoints(players = []) {
-  const valid = Array.isArray(players)
-    ? players
-        .slice(0, 128)
-        .filter(
-          (p) =>
-            finite(p.dx, -34000000, 34000000) !== null &&
-            finite(p.dz, -34000000, 34000000) !== null &&
-            finite(p.distance, 0, 48000000) !== null,
-        )
-    : [];
-  const extent = Math.max(
-    100,
-    ...valid.map((p) => Math.ceil(p.distance / 100) * 100),
-  );
-  return {
-    extent,
-    points: valid.map((p, i) => ({
-      marker: i + 1,
-      x: 50 + (p.dx / extent) * 42,
-      y: 50 + (p.dz / extent) * 42,
-      distance: p.distance,
-    })),
-  };
-}
 export class DiagnosticLog {
   constructor(limit = 512) {
     this.limit = limit;
@@ -206,33 +181,7 @@ export function createDashboard({ request, getToken }) {
     );
     const c = snapshot.connected === true ? snapshot.convoy || {} : {};
     const players = c.fresh === true ? c.players || [] : [];
-    const plot = relativePoints(players);
-    const points = $("friend-points");
-    points.replaceChildren();
-    plot.points.forEach((point) => {
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      const circle = document.createElementNS(g.namespaceURI, "circle");
-      circle.setAttribute("cx", point.x);
-      circle.setAttribute("cy", point.y);
-      circle.setAttribute("r", "3");
-      const title = document.createElementNS(g.namespaceURI, "title");
-      title.textContent =
-        "Araç " + point.marker + " · " + Math.round(point.distance) + " m";
-      circle.append(title);
-      const text = document.createElementNS(g.namespaceURI, "text");
-      text.setAttribute("x", point.x);
-      text.setAttribute("y", point.y + 1.1);
-      text.textContent = point.marker;
-      g.append(circle, text);
-      points.append(g);
-    });
-    put(
-      "radar-scale",
-      plot.extent >= 1000
-        ? (plot.extent / 1000).toFixed(1) + " km"
-        : plot.extent + " m",
-    );
-    put("friend-count", plot.points.length + " araç");
+    put("friend-count", players.length + " araç");
     put(
       "convoy-state",
       statusText[c.status] ||
@@ -248,7 +197,7 @@ export function createDashboard({ request, getToken }) {
     $("convoy-stop").disabled = !observing;
     const rows = $("friend-list");
     rows.replaceChildren();
-    plot.points.forEach((point) => {
+    players.forEach((point) => {
       const li = document.createElement("li");
       const label = document.createElement("span");
       label.textContent = "Araç " + point.marker;
