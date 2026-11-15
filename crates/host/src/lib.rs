@@ -211,7 +211,9 @@ impl OpenRequest {
     }
 }
 
+pub use westplay_phone::{PhoneBridge, PhoneStatus, interfaces as phone_interfaces};
 pub struct Config {
+    pub phone: Arc<PhoneBridge>,
     pub remote: Arc<RemoteControl>,
     pub width: u32,
     pub height: u32,
@@ -330,6 +332,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     // frame they're from, and when that was last sent.
     let mut nearby_sent: Option<u64> = None;
     let mut last_nearby_post = Instant::now();
+    let mut phone_revision = 0;
     let mut last_telemetry: Option<Telemetry> = None;
     let mut last_truck: Option<TruckInfo> = None;
     let mut last_job: Option<JobInfo> = None;
@@ -851,11 +854,22 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
             music_listing = Some(listing);
         }
 
+        // The phone service owns network IO; this thread only takes a bounded, nonblocking snapshot.
+        if let Some(update) = config.phone.updates_after(phone_revision) {
+            phone_revision = update.revision;
+            let _ = webview.post_json(&serde_json::json!({"type":"phoneState","state":update.state}).to_string());
+            for event in update.events {
+                let _ = webview.post_json(&serde_json::json!({"type":"phoneNotification","event":event}).to_string());
+            }
+        }
         for message in webview.take_page_messages() {
             match parse_page_message(&message) {
                 // The page announces itself when it (re)loads; it missed everything sent before, so send the
                 // current state again (some of it is otherwise only sent when it changes).
                 Some(PageMessage::Ready) => {
+                    let _ = webview.post_json(
+                        &serde_json::json!({"type":"phoneState","state":config.phone.snapshot()}).to_string(),
+                    );
                     // A page loaded anew asks again if it wants it.
                     spectrum = false;
                     cursor_told = None;

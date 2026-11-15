@@ -28,6 +28,7 @@ fn main() {
         .map(|dir| PathBuf::from(dir).join("WestPlay"))
         .unwrap_or_else(|| std::env::temp_dir().join("WestPlay"));
     let config = Config {
+        phone: Arc::new(westplay_host::PhoneBridge::disabled()),
         remote: Arc::new(westplay_host::RemoteControl::new()),
         width,
         height,

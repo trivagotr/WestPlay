@@ -1,3 +1,4 @@
+import { PhoneBattery } from '../phone/PhoneDisplay'
 import { formatGameTime } from '../../shared/format'
 import { useAppIcon, useClockStyle, useScreenProfile } from '../state/hooks'
 import { type AppId, APPS } from '../state/apps'
@@ -26,9 +27,9 @@ export function Sidebar() {
     <aside className="sidebar glass" style={{ viewTransitionName: 'sidebar' }}>
       <div className="status">
         <div className="time">{gameTime === null ? '--:--' : formatGameTime(gameTime, clock)}</div>
-        {/* Placeholder until the phone remote (planned) reports the real phone. */}
+        {/* Real phone data only; unavailable values stay unknown. */}
         <div className="signal">
-          <SignalBars /> 5G
+          <PhoneBattery />
         </div>
       </div>
       <nav className="recent" aria-label="Apps">
@@ -142,24 +143,6 @@ function TruckGlyph() {
       <path d="M7 6.5h10v4.5H7Z" />
       <path d="M7.5 14h1.5M15 14h1.5" />
       <path d="M6 17v2.5h2.5V17M15.5 17v2.5H18V17" />
-    </svg>
-  )
-}
-
-function SignalBars() {
-  return (
-    <svg viewBox="0 0 20 14" width="26" height="18" aria-hidden>
-      {[0, 1, 2, 3].map((bar) => (
-        <rect
-          key={bar}
-          x={bar * 5.5}
-          y={10 - bar * 3.3}
-          width="3.6"
-          height={4 + bar * 3.3}
-          rx="1"
-          fill="currentColor"
-        />
-      ))}
     </svg>
   )
 }

@@ -903,3 +903,72 @@ button {
   overflow-wrap: anywhere;
   user-select: text;
 }
+
+/* Phone data shares the room's quiet hardware-control language. */
+.phone-data-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.phone-data-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a5a5a5;
+  box-shadow: 0 0 0 4px #8881;
+}
+.phone-data-dot.connected {
+  background: #63b688;
+  box-shadow: 0 0 0 4px #63b68818;
+}
+.phone-data-qr {
+  display: block;
+  margin: 18px 0;
+  width: 180px;
+  height: 180px;
+  background: white;
+  padding: 10px;
+  border-radius: 12px;
+}
+.phone-data-uri {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: 12px/1.5 monospace;
+  overflow-wrap: anywhere;
+  background: transparent;
+  color: inherit;
+  border: 1px solid #8885;
+  border-radius: 9px;
+  padding: 10px;
+  user-select: text;
+}
+.phone-data-button {
+  font: inherit;
+  color: inherit;
+  background: #8881;
+  border: 1px solid #8884;
+  border-radius: 9px;
+  padding: 9px 13px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+.phone-data-button:hover {
+  background: #8882;
+}
+.phone-data-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.phone-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.phone-data-forget {
+  color: #bf6457;
+}
+.phone-data-control p {
+  max-width: 65ch;
+}

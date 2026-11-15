@@ -1,3 +1,5 @@
+import { PhoneCards } from './phone/PhoneDisplay'
+import { followPhone } from './phone/store'
 import { useEffect, useState } from 'react'
 import { isInHost, postToHost } from '../shared/host'
 import { appleMusicPlayer, pauseAppleMusicWithGame } from './apps/music/pauseWithGame'
@@ -40,6 +42,7 @@ export function CabinApp() {
   const route = useCabin((state) => state.navigation.route)
   const phase = useCabin((state) => state.power.phase)
   useEffect(() => connectHost(), [])
+  useEffect(() => followPhone(), [])
   // YouTube, Spotify, Apple Music, YouTube Music and Player pause with the game (its menu, tabbing out) and play
   // on after.
   useEffect(() => pauseYouTubeWithGame(), [])
@@ -81,6 +84,7 @@ export function CabinApp() {
       overlay={
         <>
           {FOLLOW_POWER && phase !== 'on' && <BootScreen phase={phase} />}
+          {powered && <PhoneCards />}
           {/* In a plain browser the system cursor is there already. */}
           {isInHost() && <Cursor />}
         </>

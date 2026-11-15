@@ -1,3 +1,4 @@
+import { PhoneDataControl } from './PhoneDataControl'
 import { useCallback, useState } from 'react'
 import { useKeyName } from '../keys'
 import { Group, KeyChooser, Note, Panel, Row, Slider, Switch } from '../room/parts'
@@ -55,6 +56,7 @@ export function Controls({ settings: state, cw }: PageProps) {
       )}
       {settings && <Keybinds settings={settings} update={update} w={w} />}
       <MobileControl />
+      <PhoneDataControl />
       {error && <Note tone="bad">{error}</Note>}
     </Panel>
   )

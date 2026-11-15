@@ -1,3 +1,4 @@
+import type { PhoneState, PhoneNotificationEvent } from './phone'
 import type { CustomWallpaper, IconSet } from './customize'
 
 /**
@@ -92,6 +93,8 @@ export type KeybindAction =
   'volumeUp' | 'volumeDown' | 'playPause' | 'nextTrack' | 'previousTrack' | 'brightnessDown' | 'brightnessUp'
 
 export type HostMessage =
+  | { type: 'phoneState'; state: PhoneState }
+  | { type: 'phoneNotification'; event: PhoneNotificationEvent }
   | { type: 'telemetry'; data: Telemetry }
   | { type: 'truck'; data: TruckInfo }
   | { type: 'job'; data: JobInfo }

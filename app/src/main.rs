@@ -35,6 +35,51 @@ struct WestplayOpen(Arc<OpenRequest>);
 /// The companion's sign-ins and sign-outs (YouTube, Spotify, Apple Music), for the host.
 struct Accounts(Arc<AccountRequests>);
 struct Mobile(Arc<westplay_host::RemoteControl>);
+struct PhoneData(Arc<westplay_host::PhoneBridge>);
+#[tauri::command]
+fn phone_interfaces() -> serde_json::Value {
+    serde_json::json!(westplay_host::phone_interfaces())
+}
+#[tauri::command]
+async fn phone_status(phone: State<'_, PhoneData>) -> Result<westplay_host::PhoneStatus, String> {
+    let phone = phone.0.clone();
+    tauri::async_runtime::spawn_blocking(move || phone.status()).await.map_err(|e| e.to_string())
+}
+#[tauri::command]
+async fn phone_configure(
+    address: Option<String>,
+    phone: State<'_, PhoneData>,
+) -> Result<westplay_host::PhoneStatus, String> {
+    let address =
+        address.map(|a| a.parse::<std::net::Ipv4Addr>().map_err(|_| "Invalid IPv4 address".to_string())).transpose()?;
+    let phone = phone.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        phone.configure(address)?;
+        Ok(phone.status())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn phone_forget(phone: State<'_, PhoneData>) -> Result<westplay_host::PhoneStatus, String> {
+    let phone = phone.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        phone.forget()?;
+        Ok(phone.status())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn phone_renew(phone: State<'_, PhoneData>) -> Result<westplay_host::PhoneStatus, String> {
+    let phone = phone.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        phone.renew_invite()?;
+        Ok(phone.status())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 
 #[tauri::command]
 fn mobile_interfaces() -> serde_json::Value {
@@ -242,6 +287,11 @@ fn main() {
             mobile_interfaces,
             mobile_status,
             mobile_configure,
+            phone_interfaces,
+            phone_status,
+            phone_configure,
+            phone_forget,
+            phone_renew,
             window_in_front,
             room_held,
             set_westplay_open,
@@ -292,6 +342,9 @@ fn main() {
                 });
             }
             let config_dir = app.path().app_config_dir()?;
+            let phone = westplay_host::PhoneBridge::new(config_dir.join("phone-link.json"))
+                .unwrap_or_else(westplay_host::PhoneBridge::unavailable);
+            app.manage(PhoneData(Arc::new(phone)));
             let file = SettingsFile::in_dir(&config_dir);
             let shared = Arc::new(SharedSettings::new(file.load()));
             let setup = SetupStore::load(&config_dir, app.handle());
@@ -321,6 +374,7 @@ fn main() {
     app.run(|app, event| {
         if let RunEvent::Exit = event {
             let _ = app.state::<Mobile>().0.configure(None);
+            let _ = app.state::<PhoneData>().0.configure(None);
             stop_host(app);
         }
     });
@@ -371,6 +425,7 @@ fn start_host(
 ) -> Result<Host, Box<dyn std::error::Error>> {
     let content = cabin_content(app);
     let remote = app.state::<Mobile>().0.clone();
+    let phone = app.state::<PhoneData>().0.clone();
     let data_dir = app.path().app_local_data_dir()?;
     let map_builder = setup::map_builder_file(app);
     westplay_host::log!(
@@ -396,8 +451,10 @@ fn start_host(
             let (settings_events, settings_dir) = (events.clone(), looks.config_dir.clone());
             let customize_changed = looks.customize_changed.clone();
             let remote = remote.clone();
+            let phone = phone.clone();
             let run = std::thread::Builder::new().name("westplay-host".into()).spawn(move || {
                 let config = Config {
+                    phone,
                     remote,
                     width: SCREEN_WIDTH,
                     height: SCREEN_HEIGHT,

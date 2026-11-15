@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["app", "crates/host", "crates/mapdata", "crates/maps", "crates/plugin", "crates/probe", "crates/remote", "crates/setup", "crates/shared"]
+members = ["app", "crates/host", "crates/mapdata", "crates/maps", "crates/plugin", "crates/probe", "crates/phone", "crates/remote", "crates/setup", "crates/shared"]
 
 [workspace.package]
 version = "2.4.0"

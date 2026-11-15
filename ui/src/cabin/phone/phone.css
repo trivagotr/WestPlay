@@ -1,0 +1,86 @@
+.phone-battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.phone-off {
+  opacity: 0.45;
+}
+.phone-cards {
+  position: absolute;
+  z-index: 120;
+  top: 22px;
+  right: 22px;
+  width: min(430px, 60%);
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+.phone-card {
+  display: flex;
+  gap: 14px;
+  padding: 17px 20px;
+  border-radius: 20px;
+  background: rgba(25, 28, 34, 0.94);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 40px #0005;
+  animation: phone-card-enter 0.22s ease-out;
+}
+.phone-card-mark {
+  font-size: 30px;
+  line-height: 1.2;
+  opacity: 0.75;
+}
+.phone-card-copy {
+  min-width: 0;
+}
+.phone-card small {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phone-card strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 20px;
+  line-height: 1.25;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.phone-card p {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 5px 0 0;
+  font-size: 16px;
+  line-height: 1.3;
+  opacity: 0.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@keyframes phone-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-9px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-card {
+    animation: none;
+  }
+}

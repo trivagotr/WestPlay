@@ -28,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         stop_thread.store(true, Ordering::Release);
     });
     let config = Config {
+        phone: Arc::new(westplay_host::PhoneBridge::disabled()),
         remote: remote.clone(), width: SCREEN_WIDTH, height: SCREEN_HEIGHT,
         content: Content::Html(r#"<!doctype html><meta charset="utf-8"><style>html,body{margin:0;width:1280px;height:720px;background:#12202b;color:white;font:40px sans-serif}button{position:absolute;left:480px;top:260px;width:320px;height:200px;border:0;border-radius:20px;background:#c03070;color:white;font:36px sans-serif}</style><h1>WestPlay native capture probe</h1><button onclick="this.style.background='#30c060';this.textContent='Touch received'">Tap here</button>"#.into()),
         data_dir: profile.into(), open_request: Arc::default(), accounts: Arc::default(),

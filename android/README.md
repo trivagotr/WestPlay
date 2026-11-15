@@ -1,0 +1,25 @@
+# WestPlay Phone (Android)
+Native Android companion for phone-data protocol v1. Existing browser mirror is independent. Android 8.0/API26+, target/compile36; Java17; AGP8.13.2/Gradle8.13. No Google services dependency. ZXing scanning happens locally.
+
+## Build
+Run PowerShell from this directory: **./build.ps1 -Sdk D:/Android/Sdk**. JDK17 must be on PATH; SDK platform android-36 and build-tools35.0.0 must exist. The script downloads Gradle8.13 from its official distribution and checks SHA256. All Gradle/cache/Android user/signing files stay under the repository parent work directory. The APK is **app/build/outputs/apk/debug/app-debug.apk**. This is a test/debug APK, not a Play Store release. Keep the external debug signing key if you need future in-place updates. Do not commit local keys, caches or local.properties.
+
+## Use and permissions
+1. Enable Phone data on the PC. On the same private IPv4 LAN, scan its QR or paste its full westplay://phone link. Tap Connect. Camera is requested only for QR; paste works without it.
+2. Grant notification access yourself via the button if wanted. Battery/charging work without notification access. Android13+ may require the user to allow restricted settings on the APK app-information screen before notification access can be granted; the app never changes this protection.
+3. Notification body sharing defaults OFF. Optional blocked-app package names are comma-separated. Own foreground, ongoing, media/progress, secret notifications are excluded. Private notifications received while locked keep the app name and generic “New notification” title, with no body; private extras are not read. No historical notifications are read on connection. Only new callback events are forwarded, IDs are SHA256 hashes, and body content is absent unless explicitly enabled.
+4. Send test event verifies the link without granting notification access. This deliberate synthetic event is the only own-app event sent.
+5. Keep the link's ongoing foreground notification enabled. Start the connected-device foreground service from the visible activity before locking the screen. Stop terminates it; Forget removes the encrypted credential. No boot auto-start. Reopen and reconnect after force-stop/reboot.
+
+The first QR pins the stable PC ID and SHA256 SPKI public key. Self-signed certificates are accepted only for that pinned key, remain subject to validity and hostname/SAN checks, and transport is WSS /phone. Tokens and saved PC identity/pin are AES-GCM encrypted using Android Keystore; cloud backup/device transfer are disabled. Discovery is only endpoint information: mDNS cannot change the saved key or PC identity. A same-PC QR without an invite can update address/port; a different PC/key requires Forget first. Last address is tried if multicast is blocked. Credentials never use cleartext HTTP.
+
+## Background limits and verification
+The connectedDevice foreground service continues independently of this activity and sends five-second heartbeats. While the user-started service is active, a partial CPU wake lock uses a120-second timeout renewed every60seconds, including reconnect attempts; Stop/destruction cancels renewal and releases it. This helps ordinary screen-off heartbeat timing but consumes battery. It is not a Doze/network exemption. No high-performance Wi-Fi lock is used. A bounded pending queue drops stale events on disconnection; no old notification backlog is replayed. Vendor battery restrictions and Android Doze can still suspend network access; review this app's battery settings manually if required. The app does not silently disable OS security or battery controls, and intentionally does not claim a guaranteed Doze exemption.
+
+Notification revisions with a new Android postTime emit notificationPosted, including reused conversation IDs. Changed visible content with the same postTime emits notificationUpdated; identical callbacks are suppressed. Discovery serially resolves up to64 queued services, drops the oldest pending entry on overflow, and rejects stale discovery generations. An uncancellable old resolve retains its slot until completion before the next generation begins resolving.
+
+JVM tests cover queued multi-PC discovery, stale/duplicate callback generations, bounded/lost service queues, fresh-vs-quiet notification revisions, unsafe/duplicate pairing fields, private-IP/port/pin validation, same-identity endpoint refresh, secret redaction, Unicode clipping, event envelopes and field/message bounds. Build/lint are run by build.ps1. Physical phone installation, permission grants, real notification content, QR-camera operation, normal screen-off reliability and Doze latency require device acceptance testing; no physical device is altered by the build script.
+
+Official build compatibility: https://developer.android.com/build/releases/agp-8-13-0-release-notes
+Foreground-service types: https://developer.android.com/develop/background-work/services/fgs/service-types
+Notification listener: https://developer.android.com/reference/android/service/notification/NotificationListenerService
