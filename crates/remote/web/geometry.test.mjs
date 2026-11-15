@@ -27,3 +27,36 @@ test("SDP leaves only private IPv4 or mDNS UDP host candidates", () => {
   assert.match(result.sdp, /foo\.local/);
   assert.doesNotMatch(result.sdp, /8\.8\.8\.8|typ relay| tcp /);
 });
+
+test("fill mode maps the whole stretched surface without letterbox gaps", () => {
+  const rect = { left: 10, top: 20, width: 900, height: 300 };
+  assert.deepEqual(containedPoint(rect, 1280, 720, 10, 20, false, "fill"), {
+    x: 0,
+    y: 0,
+  });
+  assert.deepEqual(containedPoint(rect, 1280, 720, 910, 320, false, "fill"), {
+    x: 1,
+    y: 1,
+  });
+  assert.deepEqual(containedPoint(rect, 1280, 720, 235, 245, false, "fill"), {
+    x: 0.25,
+    y: 0.75,
+  });
+  assert.equal(containedPoint(rect, 1280, 720, 0, 100, false, "fill"), null);
+  assert.deepEqual(containedPoint(rect, 1280, 720, 1000, -20, true, "fill"), {
+    x: 1,
+    y: 0,
+  });
+});
+test("portrait fill and contain use different touch regions and require a video frame", () => {
+  const rect = { left: 0, top: 0, width: 360, height: 640 };
+  assert.deepEqual(containedPoint(rect, 1280, 720, 90, 160, false, "fill"), {
+    x: 0.25,
+    y: 0.25,
+  });
+  assert.equal(
+    containedPoint(rect, 1280, 720, 90, 160, false, "contain"),
+    null,
+  );
+  assert.equal(containedPoint(rect, 0, 0, 90, 160, false, "fill"), null);
+});

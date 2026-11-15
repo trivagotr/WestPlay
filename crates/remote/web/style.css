@@ -42,7 +42,7 @@ header a span {
   color: var(--muted);
 }
 main {
-  max-width: 1400px;
+  max-width: none;
   margin: auto;
 }
 #pairing {
@@ -142,7 +142,7 @@ video {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: fill;
   pointer-events: none;
 }
 #waiting {
@@ -226,4 +226,64 @@ output {
   button:hover {
     background: #cbedb8;
   }
+}
+
+/* Once paired, spend available space on the image rather than a centered preview. */
+body.viewing {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+body.viewing header {
+  padding: 10px 18px;
+  flex-shrink: 0;
+}
+body.viewing header a span {
+  display: none;
+}
+body.viewing main {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+}
+body.viewing #display {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+body.viewing #surface {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  border-radius: 8px;
+}
+body.viewing nav {
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 6px 0;
+}
+body.viewing nav button {
+  padding: 9px 11px;
+}
+body.viewing #text-form {
+  flex-shrink: 0;
+  margin: 6px 0;
+}
+#connection-error:empty {
+  display: none;
+}
+body.viewing #display:fullscreen {
+  padding: 0;
+}
+body.viewing #display:fullscreen #surface {
+  border-radius: 0;
+}
+body.viewing #display:fullscreen nav {
+  padding: 6px;
 }

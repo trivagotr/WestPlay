@@ -9,6 +9,28 @@ let pc = null,
   moving = false,
   pingAt = 0,
   lastPong = 0;
+let fitMode = "fill";
+try {
+  if (localStorage.getItem("westplay.videoFit") === "contain")
+    fitMode = "contain";
+} catch {
+  /* Browser storage is optional. */
+}
+function applyFit() {
+  $("video").style.objectFit = fitMode;
+  $("fit").setAttribute("aria-pressed", String(fitMode === "fill"));
+  $("fit").textContent = `Görüntü: ${fitMode === "fill" ? "Doldur" : "Sığdır"}`;
+}
+applyFit();
+$("fit").onclick = () => {
+  cancel();
+  scrollPoint = null;
+  fitMode = fitMode === "fill" ? "contain" : "fill";
+  applyFit();
+  try {
+    localStorage.setItem("westplay.videoFit", fitMode);
+  } catch {}
+};
 let scrollMode = false,
   scrollPoint = null;
 function status(message) {
@@ -79,80 +101,106 @@ async function connect() {
     bundlePolicy: "max-bundle",
   });
   pc = connection;
-  connection.addTransceiver("video", { direction: "recvonly" });
-  channel = connection.createDataChannel("control", { ordered: true });
-  channel.onopen = () => {
-    if (pc !== connection) return;
-    lastPong = performance.now();
-    heartbeat = setInterval(() => {
-      if (performance.now() - lastPong > 5000) {
-        close();
-        problem("Bağlantı yanıt vermiyor. Yeniden bağlanmayı dene.");
-        return;
-      }
-      pingAt = performance.now();
-      send("ping");
-    }, 1000);
-    status("Canlı · yerel ağ");
-  };
-  channel.onmessage = (event) => {
-    if (event.data === "pong") {
+  try {
+    connection.addTransceiver("video", { direction: "recvonly" });
+    channel = connection.createDataChannel("control", { ordered: true });
+    channel.onopen = () => {
+      if (pc !== connection) return;
       lastPong = performance.now();
-      $("latency").textContent = `RTT ${Math.round(lastPong - pingAt)} ms`;
-    }
-  };
-  channel.onclose = () => {
-    if (pc === connection) {
-      cancel();
-      status("Kontrol bağlantısı kapandı");
-    }
-  };
-  connection.ontrack = (event) => {
-    if (pc === connection) {
-      $("video").srcObject = new MediaStream([event.track]);
-      $("video")
-        .play()
-        .catch(() => {});
-    }
-  };
-  connection.onconnectionstatechange = () => {
-    if (pc !== connection) return;
-    if (
-      ["failed", "disconnected", "closed"].includes(connection.connectionState)
-    ) {
-      close();
-      problem(
-        "Bağlantı kesildi. PC ve telefonun aynı ağda olduğunu kontrol edip yeniden bağlan.",
-      );
-    }
-  };
-  const offer = await connection.createOffer();
-  await connection.setLocalDescription(offer);
-  if (connection.iceGatheringState !== "complete")
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        connection.removeEventListener("icegatheringstatechange", changed);
-        reject(Error("Yerel ağ bağlantısı hazırlanamadı."));
-      }, 8000);
-      function changed() {
-        if (connection.iceGatheringState === "complete") {
-          clearTimeout(timeout);
-          connection.removeEventListener("icegatheringstatechange", changed);
-          resolve();
+      heartbeat = setInterval(() => {
+        if (performance.now() - lastPong > 5000) {
+          close();
+          problem("Bağlantı yanıt vermiyor. Yeniden bağlanmayı dene.");
+          return;
         }
+        pingAt = performance.now();
+        send("ping");
+      }, 1000);
+      status("Canlı · yerel ağ");
+    };
+    channel.onmessage = (event) => {
+      if (event.data === "pong") {
+        lastPong = performance.now();
+        $("latency").textContent = `RTT ${Math.round(lastPong - pingAt)} ms`;
       }
-      connection.addEventListener("icegatheringstatechange", changed);
-      changed();
-    });
-  const answer = await request("/offer", {
-    token,
-    description: localOffer(connection.localDescription),
-  });
-  if (pc !== connection)
-    throw Error("Bağlantı kurulamadı. Tekrar bağlanmayı dene.");
-  await connection.setRemoteDescription(answer);
-  $("pairing").hidden = true;
-  $("display").hidden = false;
+    };
+    channel.onclose = () => {
+      if (pc === connection) {
+        cancel();
+        status("Kontrol bağlantısı kapandı");
+      }
+    };
+    connection.ontrack = (event) => {
+      if (pc === connection) {
+        $("video").srcObject = new MediaStream([event.track]);
+        $("video")
+          .play()
+          .catch(() => {});
+      }
+    };
+    connection.onconnectionstatechange = () => {
+      if (pc !== connection) return;
+      if (
+        ["failed", "disconnected", "closed"].includes(
+          connection.connectionState,
+        )
+      ) {
+        close();
+        problem(
+          "Bağlantı kesildi. PC ve telefonun aynı ağda olduğunu kontrol edip yeniden bağlan.",
+        );
+      }
+    };
+    const offer = await connection.createOffer();
+    await connection.setLocalDescription(offer);
+    if (connection.iceGatheringState !== "complete")
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          connection.removeEventListener("icegatheringstatechange", changed);
+          reject(Error("Yerel ağ bağlantısı hazırlanamadı."));
+        }, 8000);
+        function changed() {
+          if (connection.iceGatheringState === "complete") {
+            clearTimeout(timeout);
+            connection.removeEventListener("icegatheringstatechange", changed);
+            resolve();
+          }
+        }
+        connection.addEventListener("icegatheringstatechange", changed);
+        changed();
+      });
+    // Closing an old peer is asynchronous on the PC. Retry only its temporary
+    // ownership conflict; never replay input or retry invalid credentials.
+    const offerBody = {
+      token,
+      description: localOffer(connection.localDescription),
+    };
+    const retryUntil = performance.now() + 10000;
+    let answer;
+    for (;;) {
+      if (pc !== connection) return;
+      try {
+        answer = await request("/offer", offerBody);
+        break;
+      } catch (error) {
+        if (pc !== connection) return;
+        if (error.status !== 409 || performance.now() >= retryUntil)
+          throw error;
+        status("Önceki bağlantı kapatılıyor…");
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+    if (pc !== connection) return;
+    await connection.setRemoteDescription(answer);
+    if (pc !== connection) return;
+    $("pairing").hidden = true;
+    $("display").hidden = false;
+    document.body.classList.add("viewing");
+  } catch (error) {
+    // A newer attempt owns the global connection; old failures must not close it.
+    if (pc !== connection) return;
+    throw error;
+  }
 }
 $("pair-form").onsubmit = async (event) => {
   event.preventDefault();
@@ -188,6 +236,7 @@ $("disconnect").onclick = () => {
   $("connect").textContent = "Bağlan ↗";
   $("pairing").hidden = false;
   $("display").hidden = true;
+  document.body.classList.remove("viewing");
   $("error").textContent = "Yeni eşleşme için PC’de mobil ekranı kapatıp aç.";
 };
 $("video").onloadeddata = () => {
@@ -202,6 +251,7 @@ function point(event, clamp = false) {
     event.clientX,
     event.clientY,
     clamp,
+    fitMode,
   );
 }
 function flushMove() {

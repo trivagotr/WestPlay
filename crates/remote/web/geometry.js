@@ -5,12 +5,14 @@ export function containedPoint(
   clientX,
   clientY,
   clamp = false,
+  fit = "contain",
 ) {
   if (!(width > 0 && height > 0 && rect.width > 0 && rect.height > 0))
     return null;
   const scale = Math.min(rect.width / width, rect.height / height);
-  const w = width * scale,
-    h = height * scale;
+  // Fill stretches each axis independently; Fit preserves the source aspect ratio.
+  const w = fit === "fill" ? rect.width : width * scale,
+    h = fit === "fill" ? rect.height : height * scale;
   let x = (clientX - rect.left - (rect.width - w) / 2) / w;
   let y = (clientY - rect.top - (rect.height - h) / 2) / h;
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
