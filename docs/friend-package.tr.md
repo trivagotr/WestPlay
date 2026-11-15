@@ -8,11 +8,11 @@ TELEFON: iki ayrı özellik var
 
 A) Android uygulaması — pil / bildirim verisi
 Android/WestPlay-Phone-Preview.apk dosyasını telefonunuza gönderip kurun (Android 8 veya üzeri). Bu test APK'sıdır; Android, dosyayı açtığınız uygulama için “bilinmeyen uygulama yükleme” izni isteyebilir. İzni Android ekranından kendiniz verin.
-Bilgisayar ve telefon aynı güvenilir yerel ağda olsun. PC'de Phone data / Telefon verisi özelliğini açın. Android uygulamasında bu bölümün QR kodunu tarayın veya tam westplay://phone bağlantısını yapıştırın, Connect / Bağlan'a dokunun. Kamera izni yalnız QR taramak içindir; yapıştırma da çalışır.
+Bilgisayar ve telefon aynı güvenilir yerel ağda olsun. PC’de Controls → Telefon bağlantısı → Android uygulaması seçeneğini seçin; Phone data / Telefon verisi özelliğini açın. Android uygulamasında bu bölümün QR kodunu tarayın veya tam westplay://phone bağlantısını yapıştırın, Connect / Bağlan'a dokunun. Kamera izni yalnız QR taramak içindir; yapıştırma da çalışır.
 Pil bilgisi için bildirim erişimi gerekmez. Bildirimleri istiyorsanız Android ayarlarından bildirim erişimini kendiniz verin. Android 13 ve üzeri, önce uygulama bilgilerinde “kısıtlanmış ayarlara izin ver” seçeneğini gerektirebilir. Bildirim gövdesini paylaşma varsayılan olarak kapalıdır. Test event ile izin vermeden bağlantıyı deneyebilirsiniz. Stop bağlantıyı durdurur; Forget eşleştirmeyi siler. Telefon yeniden başlatılırsa uygulamayı açıp yeniden bağlayın.
 
 B) Telefon tarayıcısı — PC ekranını görme / dokunarak kontrol
-PC'de Controls → Mobile screen / Mobil ekran bölümüne girin, telefonun bulunduğu özel IPv4 ağını seçip açın. Bu bölümün QR kodunu telefonun tarayıcısıyla açın veya HTTP adresini yazın. PC'deki altı haneli kodu iki dakika içinde girin. Bu kod Android uygulamasının Telefon verisi QR kodundan ayrıdır.
+PC’de Controls → Telefon bağlantısı → Tarayıcı · APK gerekmez seçeneğini seçin. Tarayıcı sunucusunu telefonun bulunduğu özel IPv4 ağında açın. Bunun için APK kurmanız gerekmez. Bu bölümün QR kodunu telefonun tarayıcısıyla açın veya HTTP adresini yazın. PC'deki altı haneli kodu iki dakika içinde girin. Bu kod Android uygulamasının Telefon verisi QR kodundan ayrıdır.
 Görüntü varsayılan olarak ekranı doldurur; oranı korumak için Sığdır / Fit seçeneğini kullanın. Ses PC'de kalır. Desteklenen donanım video kodlayıcısı ve WebRTC H.264 destekli güncel bir tarayıcı gerekir. Telefon yatayken daha rahat kullanılır. Özellik her PC açılışında yeniden etkinleştirilir; kapatıp açmak yeni davet oluşturur.
 
 BAĞLANTI VE İLK KURULUM

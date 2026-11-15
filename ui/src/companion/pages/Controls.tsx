@@ -1,4 +1,4 @@
-import { PhoneDataControl } from './PhoneDataControl'
+import { PhoneConnection } from './PhoneConnection'
 import { useCallback, useState } from 'react'
 import { useKeyName } from '../keys'
 import { Group, KeyChooser, Note, Panel, Row, Slider, Switch } from '../room/parts'
@@ -7,7 +7,6 @@ import { GLOW, openAndClose, useScreenAt, useTour } from '../room/screen'
 import { type Binding, DEFAULT_KEY, KEYBIND_IDS, type KeybindId, SENSITIVITY, type Settings } from '../useSettings'
 import { KeyButton } from './KeyButton'
 import type { PageProps } from './page'
-import { MobileControl } from './MobileControl'
 
 /**
  * How the player uses the truck's screen: the key they hold (the onboarding's keycaps), how fast the pointer
@@ -22,6 +21,7 @@ export function Controls({ settings: state, cw }: PageProps) {
   useTour([...openAndClose('music', GLOW.music), ...openAndClose('maps', GLOW.maps)])
   return (
     <Panel place="page" title={w.title} sub={w.sub}>
+      <PhoneConnection />
       <p className="ob-group-title ob-in" style={n(4)}>
         {settings?.interaction.mode === 'toggle' ? w.keyToggle : w.key}
       </p>
@@ -55,8 +55,6 @@ export function Controls({ settings: state, cw }: PageProps) {
         </Group>
       )}
       {settings && <Keybinds settings={settings} update={update} w={w} />}
-      <MobileControl />
-      <PhoneDataControl />
       {error && <Note tone="bad">{error}</Note>}
     </Panel>
   )

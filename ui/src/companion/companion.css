@@ -972,3 +972,37 @@ button {
 .phone-data-control p {
   max-width: 65ch;
 }
+
+.phone-connection-choice {
+  padding: 14px 20px;
+}
+.phone-connection-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.phone-connection-modes button {
+  font: inherit;
+  font-size: 13px;
+  padding: 11px 14px;
+  border: 1px solid #8884;
+  border-radius: 9px;
+  color: var(--text);
+  background: #8881;
+  cursor: pointer;
+}
+.phone-connection-modes button[aria-pressed='true'] {
+  background: var(--blue);
+  color: white;
+  border-color: transparent;
+}
+.phone-connection-modes button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.phone-connection-choice p {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}

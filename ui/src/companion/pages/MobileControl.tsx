@@ -79,19 +79,19 @@ export function MobileControl() {
     }
   }
   return (
-    <Group title={tr ? 'Mobil ekran' : 'Mobile screen'} place={8}>
+    <Group title={tr ? 'Tarayıcı bağlantısı' : 'Browser connection'} place={5}>
       <Row
-        title={tr ? 'Telefondan birebir kontrol' : 'Mirror and control from your phone'}
+        title={tr ? 'Tarayıcı sunucusu' : 'Browser server'}
         detail={
           tr
-            ? 'Aynı yerel ağda, tarayıcı üzerinden. Ses PC’de kalır.'
-            : 'Same local network, in your browser. Audio stays on the PC.'
+            ? 'APK kurmadan, Chrome veya Safari üzerinden. Ses PC’de kalır.'
+            : 'No APK required. Use Chrome or Safari on the same network. Audio stays on the PC.'
         }
         accessory={
           <Switch
             on={status.enabled}
             disabled={busy || !IN_APP || (!address && !status.enabled)}
-            label={tr ? 'Mobil ekran' : 'Mobile screen'}
+            label={tr ? 'Tarayıcı sunucusu' : 'Browser server'}
             change={(on) => void configure(on)}
           />
         }
@@ -141,6 +141,11 @@ export function MobileControl() {
             </p>
             <code className="mobile-code">{status.code}</code>
             <p className="mobile-address">{status.url}</p>
+            <p>
+              {tr
+                ? 'Bu HTTP adresini telefonun tarayıcısında aç. Yukarıdaki kodu gir; APK gerekmez.'
+                : 'Open this HTTP address in your phone browser and enter the code above. No APK needed.'}
+            </p>
             <p>
               {tr
                 ? 'Yeni telefon eşlemek için mobil ekranı kapatıp aç.'
