@@ -18,3 +18,11 @@ Tasks:
 Live acceptance remains open: near/far Convoy players, stable identity/classification, own-truck exclusion, join/leave/disconnect behavior and actual game-frame overhead. No server or paid service fallback without a separate decision.
 
 Review: one documentation overstatement about real-data rejection was corrected. Tags do not authenticate provenance; no live reader exists. Independent synthetic tests passed. No production files, installed game files, running processes, runtime packages or user game state were modified.
+
+## Phase 2 — authorized controlled observation, 16 November 2026
+
+The user explicitly ended normal play, authorized testing, confirmed a friend in the same Convoy alongside the local truck, and confirmed peer-only movement. Read-only observation was performed against the exact fingerprinted executable. No game writes, injection, plugin installation or game-code execution occurred. The user then closed ETS2; current work remains offline. Do not reopen or attach for further experiments without a new controlled-session agreement.
+
+Nearby coordinate access was observed: 117 samples, own truck present in all, peer in 98; the peer moved about 39.95 m while the local truck stayed stationary. Nineteen missing peer samples, including a roughly 6.13 s gap, prevent production map integration. Prepared multi-list tracing has not been live-tested. Far coverage, moving ownership, join/leave, exit behavior and actual frame overhead remain open.
+
+Fresh review found two issues: stale SDK publication acceptance and top-level exception path leakage. Both were fixed with deterministic helper-only tests. The SDK writes telemetry every frame-end, so the observer now requires observed sequence progress and expires it after 1500 ms; initial/reset identity is refused until progress. This guard has not been live-tested. Top-level errors are sanitized. Thirteen Node replay/synthetic tests and native own-memory self-tests pass. See docs/convoy-live-results.tr.md.

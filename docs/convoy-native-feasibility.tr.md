@@ -1,5 +1,7 @@
 # Konvoy oyuncuları — VPS’siz erişim araştırması
 
+> 16 Kasım 2026 güncellemesi: Bu belge ilk çevrimdışı aşamayı anlatır. Kullanıcının daha sonra onayladığı canlı ölçüm ve kalan güvenilirlik sorunları için [canlı test raporuna](convoy-live-results.tr.md) bakın.
+
 15 Kasım2026. Hedef, daha önce yalnızca süreç bilgisiyle görülen ETS2 1.62.3.3. Kullanıcı oynadığı için sonrasında oyuna, işlem belleğine veya kurulum dosyalarına erişilmedi. Eklenti kurulmadı; oyun durdurulmadı; ekran yakalanmadı; ağır derleme yapılmadı.
 
 ## Bulunanlar
