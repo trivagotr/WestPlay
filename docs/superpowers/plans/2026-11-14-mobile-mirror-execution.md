@@ -31,3 +31,13 @@ Final verification and package results are recorded in outputs/WestPlay-dogrulam
 - Final rebuilt synthetic executable + actual Chrome/NVENC integration smoke: PASS, including failed-offer retry, scroll, touch, text, cancel and new invitation editability.
 - Native game/device validation remains explicitly unverified because the installed user's WestPlay is running.
 - Portable archive checked for executable, companion/cabin UI and guide.
+
+## 15 November: offline packaging correction
+
+- User screenshot reproduced localhost:5173 ERR_CONNECTION_REFUSED in the delivered preview. The previous plain cargo release lacked Tauri custom-protocol; build success had not verified companion startup.
+- Actual generated-context regression failed because embedded index.html was absent.
+- Added app custom-protocol feature mapping, explicit root build flag and release build-script guards for the flag and built UI.
+- Negative release test now stops with the explicit missing-feature error; packaged app tests: 6 passed, 0 failed, 1 existing ignored.
+- Corrected cargo build --release -p westplay-app --features custom-protocol completed successfully.
+- Replaced the extracted preview executable. Native UI verification selected the exact extracted process path, observed http://tauri.localhost/, the working companion and live native Mobile screen interface list while localhost:5173 was stopped. Left the corrected app open on Controls with mobile control off.
+- Original installed app was briefly selected by launcher app-id resolution; closed that test launch and used the exact process: executable identifier to verify the corrected preview.

@@ -43,7 +43,11 @@ From the root with stable Rust and Node.js >=24.15:
     npm run build --prefix ui
     cargo test --workspace
     node --test crates/remote/web/geometry.test.mjs
-    cargo build --release -p westplay-app
+    cargo build --release -p westplay-app --features custom-protocol
+
+The custom-protocol feature embeds the companion assets. Release builds without it, or without ui/dist/index.html, fail early instead of producing a localhost-dependent package. Validate the packaged assets with:
+
+    cargo test -p westplay-app --features custom-protocol
 
 Portable layout: westplay.exe, adjacent ui/ containing ui/dist contents, optionally ffmpeg.exe, plus the project's existing LICENSE and third-party notices. The rest of setup/maps/updater behavior follows the original app.
 
@@ -64,4 +68,4 @@ It exercises WebView2→D3D11→WebRTC without game-file changes. It stops after
 
 ## Validation limits
 
-Windows source checks and desktop Chrome decoding of real NVENC 1280×720 video have been exercised. Installed WestPlay was already running, so the separate native probe was blocked and the user's instance was left untouched. ETS2/ATS capture during gameplay, embedded media in a real game, Android/iPhone behavior, Wi-Fi performance and actual end-to-end latency remain unverified. Existing interactive/network-dependent ignored repository tests keep that status.
+Windows source checks and desktop Chrome decoding of real NVENC 1280×720 video have been exercised. The companion's offline startup and native Mobile screen panel were verified on 15 November with Vite stopped. The separate capture/video probe has not been repeated. ETS2/ATS capture during gameplay, embedded media in a real game, Android/iPhone behavior, Wi-Fi performance and actual end-to-end latency remain unverified. Existing interactive/network-dependent ignored repository tests keep that status.

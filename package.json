@@ -6,7 +6,7 @@
     "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/sweep.ps1",
     "dev": "tauri dev",
     "prebuild": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/sweep.ps1",
-    "build": "tauri build",
+    "build": "tauri build --features custom-protocol",
     "postinstall": "npm --prefix ui install"
   },
   "devDependencies": {

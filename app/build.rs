@@ -3,6 +3,13 @@ fn main() {
     // (`npm run build:release`) and which isn't in the repository. Without it, `cargo check` or `cargo test`
     // on a fresh clone would fail here: an empty folder stands in until the UI is built.
     let dist = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/dist");
+    if std::env::var("PROFILE").as_deref() == Ok("release") {
+        assert!(
+            std::env::var_os("CARGO_FEATURE_CUSTOM_PROTOCOL").is_some(),
+            "Packaged release requires embedded assets: cargo build --release -p westplay-app --features custom-protocol"
+        );
+        assert!(dist.join("index.html").is_file(), "Build the companion UI first: npm run build --prefix ui");
+    }
     if !dist.exists() {
         std::fs::create_dir_all(&dist).expect("creating ui/dist");
     }
