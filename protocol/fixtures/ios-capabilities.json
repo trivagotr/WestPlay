@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "sequence": 1,
+  "eventType": "deviceHello",
+  "payload": {
+    "capabilities": {
+      "battery": true,
+      "charging": true,
+      "notifications": false,
+      "notificationBody": false,
+      "backgroundRelay": false
+    }
+  }
+}
