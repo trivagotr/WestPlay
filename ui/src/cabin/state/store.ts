@@ -1,3 +1,4 @@
+import { receiveConvoy, type ConvoyState } from '../../shared/convoy'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
@@ -342,6 +343,8 @@ export interface LiveState {
   truckersmpGame: 'ets2' | 'ats' | null
   /** Under TruckersMP, the players around the player from its SDK, as the host last said (`null`: none). */
   nearby: Nearby | null
+  /** Native Convoy positions, independent of the TruckersMP feed. */
+  convoy: ConvoyState | null
   /** The music's spectrum as the host last said it (Settings › Equalizer's, `HostMessage` `spectrum`). */
   spectrum: readonly number[]
   /** The host draws the screen's cursor (`cursor` message): the page draws none of its own then. */
@@ -381,6 +384,7 @@ export const useLive = create<LiveState>()(() => ({
   truckersmp: false,
   truckersmpGame: null,
   nearby: null,
+  convoy: null,
   spectrum: [],
   cursorByHost: false,
 }))
@@ -583,8 +587,11 @@ function receiveHostMessage(now: () => number): (message: HostMessage) => void {
         useLive.setState({
           truckersmp: message.on,
           truckersmpGame: message.game ?? null,
-          ...(message.on ? {} : { nearby: null }),
+          ...(message.on ? { convoy: null } : { nearby: null }),
         })
+        break
+      case 'convoyPlayers':
+        useLive.setState({ convoy: receiveConvoy(message, now()) })
         break
       case 'nearby':
         useLive.setState({
@@ -598,7 +605,7 @@ function receiveHostMessage(now: () => number): (message: HostMessage) => void {
         // The game closed: the screen goes off as with the truck's electrics (the kept apps go with it), and
         // the next game's first telemetry powers it on afresh.
         if (!message.running) {
-          useLive.setState({ telemetry: null })
+          useLive.setState({ telemetry: null, convoy: null })
           useCabin.getState().powerEvent({ type: 'electrics', on: false, at: now() })
         }
         break

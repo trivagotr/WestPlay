@@ -46,3 +46,59 @@ fn logs_are_bounded_and_never_include_payload_credentials_or_absolute_positions(
     assert!(!s.contains("ownTelemetry"));
     assert!(!s.contains("200.0"));
 }
+
+#[test]
+fn native_names_are_bound_sanitized_and_do_not_leak_into_logs() {
+    let now = Instant::now();
+    let mut c = Convoy::default();
+    let mut f = frame();
+    f["vehicles"][1]["name"] = json!("Ali\u{202e}\n Kaya");
+    f["vehicles"][1]["nameBinding"] = json!("native-session-actor");
+    c.accept(&f, now);
+    assert_eq!(c.snapshot(now)["players"][0]["name"], "Ali Kaya");
+    let native = c.native_snapshot(now);
+    assert_eq!(native["players"][0]["id"], "bbbbbbbbbbbb");
+    assert_eq!(native["players"][0]["x"], 130.0);
+    assert_eq!(native["players"][0]["name"], "Ali Kaya");
+    assert!(!serde_json::to_string(&c.logs()).unwrap().contains("Ali"));
+    f["vehicles"][1]["nameBinding"] = json!("nearest");
+    c.accept(&f, now);
+    assert!(c.snapshot(now)["players"][0].get("name").is_none());
+}
+#[test]
+fn invalid_sample_clears_native_world_too() {
+    let now = Instant::now();
+    let mut c = Convoy::default();
+    c.accept(&frame(), now);
+    c.accept(&json!({"status":"sample-refused"}), now);
+    assert!(c.native_snapshot(now)["players"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn replacement_own_actor_requires_three_coherent_samples() {
+    let now = Instant::now();
+    let mut c = Convoy::default();
+    c.accept(&frame(), now);
+    let mut f = frame();
+    f["vehicles"][0]["id"] = json!("cccccccccccc");
+    for _ in 0..2 {
+        c.accept(&f, now);
+        assert!(c.snapshot(now)["players"].as_array().unwrap().is_empty());
+    }
+    c.accept(&f, now);
+    assert_eq!(c.snapshot(now)["players"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn invalid_gaps_do_not_count_toward_replacement_ownership() {
+    let now = Instant::now();
+    let mut c = Convoy::default();
+    c.accept(&frame(), now);
+    let mut f = frame();
+    f["vehicles"][0]["id"] = json!("cccccccccccc");
+    for _ in 0..3 {
+        c.accept(&f, now);
+        assert!(c.snapshot(now)["players"].as_array().unwrap().is_empty());
+        c.accept(&json!({"status":"sample-refused"}), now);
+    }
+}

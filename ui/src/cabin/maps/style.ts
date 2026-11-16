@@ -714,6 +714,8 @@ export const OFFERED_SOURCE = 'westplay-offered'
 export const TRAFFIC_SOURCE = 'westplay-traffic'
 /** TruckersMP's other players (truckersmp.ts): points. */
 export const PLAYERS_SOURCE = 'westplay-players'
+/** Local Convoy vehicles; separate from TruckersMP to avoid replacing its feed. */
+export const CONVOY_SOURCE = 'westplay-convoy'
 
 /** The traffic over the route previewed: yellow where it's slow, red where it's jammed, as Apple's. The
  * same colours in light and dark. */
@@ -752,6 +754,24 @@ function playerLayers(): LayerSpecification[] {
         'circle-stroke-color': '#ffffff',
         'circle-stroke-opacity': 0.7,
         'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9, 1, 16, 2],
+      },
+    },
+  ]
+}
+
+/** Convoy positions share the map camera, clipping, and scale with the roads. */
+function convoyLayers(): LayerSpecification[] {
+  return [
+    {
+      id: 'convoy-players',
+      type: 'circle',
+      source: CONVOY_SOURCE,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3, 13, 5, 16, 7, 18, 10],
+        'circle-color': '#0a84ff',
+        'circle-opacity': 0.9,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
       },
     },
   ]
@@ -921,6 +941,7 @@ export function mapStyle(appearance: Appearance, data: MapData | null, surfaces 
           [OFFERED_SOURCE]: { type: 'geojson', data: NO_LINE },
           [TRAFFIC_SOURCE]: { type: 'geojson', data: NO_LINE },
           [PLAYERS_SOURCE]: { type: 'geojson', data: NO_LINE },
+          [CONVOY_SOURCE]: { type: 'geojson', data: NO_LINE },
         }
       : {},
     layers: [
@@ -962,7 +983,7 @@ export function mapStyle(appearance: Appearance, data: MapData | null, surfaces 
       buildingFlatLayer(palette),
       buildingLayer(palette),
       ...routeLayers(palette),
-      ...(data ? [...offeredLayers(palette), ...trafficLayers(), ...playerLayers()] : []),
+      ...(data ? [...offeredLayers(palette), ...trafficLayers(), ...playerLayers(), ...convoyLayers()] : []),
       noEntryLayer(),
       signLayer(),
       ...placeLayers(),

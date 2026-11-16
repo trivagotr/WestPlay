@@ -100,7 +100,82 @@ class LiveResearchReader {
         }
         return headers;
     }
+    const long SessionSlotRva=0x3715040;
+    static long NamePointer(Func<long,int,byte[]> read,long at) {
+        long value=BitConverter.ToInt64(read(at,8),0);
+        if(!Valid(value)||(value&7)!=0)throw new Exception("name-invalid-pointer");return value;
+    }
+    static string DisplayName(Func<long,int,byte[]> read,long pointer) {
+        // Names are UTF-8 in this fingerprint. Do not infer SCS string header length/capacity.
+        var bytes=new List<byte>();bool terminated=false;
+        for(int i=0;i<=256;i++){byte b=read(pointer+i,1)[0];if(b==0){terminated=true;break;}if(i==256)break;bytes.Add(b);}
+        if(!terminated)throw new Exception("name-too-long");
+        string decoded=new UTF8Encoding(false,true).GetString(bytes.ToArray());var clean=new StringBuilder();
+        foreach(char c in decoded){UnicodeCategory category=CharUnicodeInfo.GetUnicodeCategory(c);if(category!=UnicodeCategory.Control&&category!=UnicodeCategory.Format&&category!=UnicodeCategory.LineSeparator&&category!=UnicodeCategory.ParagraphSeparator)clean.Append(c);}
+        string value=clean.ToString().Trim();
+        return value.Length==0||value.StartsWith("@@",StringComparison.Ordinal)?null:value;
+    }
+    sealed class NameLink {public long Info,Remote,Actor,Text;public string Name;}
+    static Dictionary<long,string> ResolveNames(Func<long,int,byte[]> read,long image,HashSet<long> actors) {
+        var names=new Dictionary<long,string>();
+        long session=BitConverter.ToInt64(read(image+SessionSlotRva,8),0);if(session==0)return names;
+        if(!Valid(session)||(session&7)!=0)throw new Exception("name-invalid-session");
+        ulong count=BitConverter.ToUInt64(read(session+0x2e8,8),0);if(count>128)throw new Exception("name-roster-bounds");
+        long data=count>0?NamePointer(read,session+0x2e0):BitConverter.ToInt64(read(session+0x2e0,8),0);
+        byte[] pointers=count>0?read(data,(int)count*8):new byte[0];
+        var seenInfo=new HashSet<long>();var seenActor=new HashSet<long>();var links=new List<NameLink>();
+        for(int i=0;i<(int)count;i++){
+            long info=BitConverter.ToInt64(pointers,i*8);if(!Valid(info)||(info&7)!=0||!seenInfo.Add(info))throw new Exception("name-roster-duplicate");
+            long remote=BitConverter.ToInt64(read(info+0x430,8),0);if(remote==0)continue;if(!Valid(remote)||(remote&7)!=0)throw new Exception("name-invalid-remote");
+            long actor=BitConverter.ToInt64(read(remote+0x290,8),0);if(actor==0)continue;if(!Valid(actor)||(actor&7)!=0||!seenActor.Add(actor))throw new Exception("name-actor-ambiguous");
+            // The game's native map path requires these actor flags. No fallback coordinates/names.
+            if(!actors.Contains(actor)||(read(actor+0x228,1)[0]&0x60)!=0x60)continue;
+            long text=BitConverter.ToInt64(read(info+0x110,8),0);if(!Valid(text))throw new Exception("name-invalid-text");
+            string name=DisplayName(read,text);
+            links.Add(new NameLink{Info=info,Remote=remote,Actor=actor,Text=text,Name=name});
+        }
+        // Validate the whole snapshot after all strings have been decoded; never retain a cached name.
+        if(BitConverter.ToInt64(read(image+SessionSlotRva,8),0)!=session||BitConverter.ToUInt64(read(session+0x2e8,8),0)!=count||BitConverter.ToInt64(read(session+0x2e0,8),0)!=data)throw new Exception("name-snapshot-changed");
+        byte[] after=count>0?read(data,(int)count*8):new byte[0];for(int i=0;i<pointers.Length;i++)if(pointers[i]!=after[i])throw new Exception("name-snapshot-changed");
+        foreach(var link in links){
+            if(NamePointer(read,link.Info+0x430)!=link.Remote||NamePointer(read,link.Remote+0x290)!=link.Actor||BitConverter.ToInt64(read(link.Info+0x110,8),0)!=link.Text||(read(link.Actor+0x228,1)[0]&0x60)!=0x60||DisplayName(read,link.Text)!=link.Name)throw new Exception("name-chain-changed");
+            if(link.Name!=null)names.Add(link.Actor,link.Name);
+        }
+        return names;
+    }
+    static bool NameSignatures(Memory memory,long image) {
+        long[] offsets={0xf5568c,0xf556c3,0xf556dc,0xf565d0,0x537127};
+        string[] expected={"488bba30040000","488b8f90020000","0f104128","498d8fd8020000483b59100f830d020000488b4108488b14d8","488d9008010000488bcbe89a0cbcff"};
+        try{for(int i=0;i<offsets.Length;i++){byte[] actual=memory.Read(image+offsets[i],expected[i].Length/2);if(BitConverter.ToString(actual).Replace("-","").ToLowerInvariant()!=expected[i])return false;}return true;}catch{return false;}
+    }
+    static void NameSelfTest() {
+        // Synthetic address space: no game is opened or called by this test.
+        var blocks=new Dictionary<long,byte[]>();
+        long image=0x100000,session=0x5000000,data=0x5001000,info=0x5002000,remote=0x5003000,actor=0x5004000,text=0x5005000;
+        blocks[image+0x3715040]=BitConverter.GetBytes(session);blocks[session+0x2e0]=BitConverter.GetBytes(data);blocks[session+0x2e8]=BitConverter.GetBytes(1UL);
+        blocks[data]=BitConverter.GetBytes(info);blocks[info+0x430]=BitConverter.GetBytes(remote);blocks[remote+0x290]=BitConverter.GetBytes(actor);blocks[actor+0x228]=new byte[]{0x60};blocks[info+0x110]=BitConverter.GetBytes(text);
+        blocks[text]=Encoding.UTF8.GetBytes("Çağrı 🚚\0");
+        Func<long,int,byte[]> read=delegate(long at,int size){foreach(var pair in blocks){if(at>=pair.Key&&at-pair.Key<=pair.Value.Length-size){var b=new byte[size];Array.Copy(pair.Value,(int)(at-pair.Key),b,0,size);return b;}}throw new Exception("fixture-range");};
+        var actors=new HashSet<long>{actor};
+        if(ResolveNames(read,image,actors)[actor]!="Çağrı 🚚")throw new Exception("name-exact-actor");
+        if(ResolveNames(read,image,new HashSet<long>{actor+8}).Count!=0)throw new Exception("name-no-nearest-join");
+        blocks[text]=new byte[]{0xc0,0xaf,0};bool rejected=false;try{ResolveNames(read,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-invalid-utf8");
+        blocks[text]=new byte[257];for(int i=0;i<257;i++)blocks[text][i]=65;rejected=false;try{ResolveNames(read,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-byte-budget");
+        blocks[text]=Encoding.UTF8.GetBytes("A\u202eB\n\0");if(ResolveNames(read,image,actors)[actor]!="AB")throw new Exception("name-control-filter");
+        blocks[session+0x2e8]=BitConverter.GetBytes(2UL);blocks[data]=new byte[16];Array.Copy(BitConverter.GetBytes(info),0,blocks[data],0,8);Array.Copy(BitConverter.GetBytes(info+0x800),0,blocks[data],8,8);
+        blocks[info+0x800+0x430]=BitConverter.GetBytes(remote);rejected=false;try{ResolveNames(read,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-ambiguous-actor");
+        blocks[session+0x2e8]=BitConverter.GetBytes(1UL);int calls=0;Func<long,int,byte[]> changed=delegate(long at,int size){if(at==info+0x110&&++calls>1)return BitConverter.GetBytes(text+8);return read(at,size);};
+        rejected=false;try{ResolveNames(changed,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-changing-chain");
+        blocks[actor+0x228]=new byte[]{0};if(ResolveNames(read,image,actors).Count!=0)throw new Exception("name-inactive-actor");blocks[actor+0x228]=new byte[]{0x60};
+        blocks[session+0x2e8]=BitConverter.GetBytes(0UL);if(ResolveNames(read,image,actors).Count!=0)throw new Exception("name-empty-roster");
+        blocks[session+0x2e8]=BitConverter.GetBytes(1UL);calls=0;Func<long,int,byte[]> changingHeader=delegate(long at,int size){if(at==session+0x2e8&&++calls>1)return BitConverter.GetBytes(2UL);return read(at,size);};
+        rejected=false;try{ResolveNames(changingHeader,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-changing-roster");
+        blocks[session+0x2e8]=BitConverter.GetBytes(129UL);rejected=false;try{ResolveNames(read,image,actors);}catch{rejected=true;}if(!rejected)throw new Exception("name-roster-budget");
+    }
     static int SelfTest(){
+        NameSelfTest();
+        using(var ownLifetime=new ParentLifetime(Process.GetCurrentProcess().Id)){if(!ownLifetime.Alive())throw new Exception("parent-own-process-fixture");}
+        if(!ParentAlive(delegate{return false;},delegate{return 10L;},10)||ParentAlive(delegate{return true;},delegate{return 10L;},10)||ParentAlive(delegate{return false;},delegate{return 11L;},10)||ParentAlive(delegate{throw new Exception("fixture");},delegate{return 10L;},10))throw new Exception("parent-lifetime-fixture");
         if(SafeReason(new System.IO.IOException(@"C:\Users\private\game.exe"))!="internal-error")throw new Exception("error-redaction");
         var freshness=new PublicationFreshness();
         if(freshness.Accept(1,2,0)||!freshness.Accept(1,4,500)||freshness.Accept(1,4,2101)||!freshness.Accept(1,6,2200)||freshness.Accept(2,8,2300)||freshness.Accept(2,2,2400)||!freshness.Accept(2,4,2500))throw new Exception("publication-freshness");
@@ -171,7 +246,29 @@ class LiveResearchReader {
         object own=OwnPose(pid);
         Emit(new {status="list-discovery-sample",frame=frame,elapsedMs=elapsed,readMs=timer.Elapsed.TotalMilliseconds,lists=lists,ownTelemetry=own,layoutVerified=false,completeRosterVerified=false});
     }
-    static int Observe(int pid,int seconds,bool discover,bool trace){
+    static bool ParentAlive(Func<bool> exited,Func<long> creation,long expected) {
+        try{return !exited()&&creation()==expected;}catch{return false;}
+    }
+    sealed class ParentLifetime : IDisposable {
+        readonly Process parent;readonly long creation;
+        public ParentLifetime(int pid) {
+            if(pid<=0)throw new Exception("invalid-parent-pid");
+            parent=Process.GetProcessById(pid);
+            try{
+                // Cache an actual process handle before polling. A recycled PID cannot retarget it.
+                IntPtr stableHandle=parent.Handle;if(stableHandle==IntPtr.Zero)throw new Exception("parent-unavailable");
+                creation=parent.StartTime.ToUniversalTime().Ticks;
+                if(!Alive())throw new Exception("parent-exited");
+            }catch{parent.Dispose();throw;}
+        }
+        public bool Alive(){return ParentAlive(delegate{return parent.HasExited;},delegate{return parent.StartTime.ToUniversalTime().Ticks;},creation);}
+        public void Dispose(){parent.Dispose();}
+    }
+    static int Follow(int pid,int parentPid) {
+        if(parentPid==pid||parentPid==Process.GetCurrentProcess().Id)throw new Exception("invalid-parent-pid");
+        using(var parent=new ParentLifetime(parentPid))return Observe(pid,1,false,false,true,parent);
+    }
+    static int Observe(int pid,int seconds,bool discover,bool trace,bool follow,ParentLifetime parent){
         if(seconds<1||seconds>120||!Environment.Is64BitProcess)throw new Exception("invalid-duration-or-architecture");
         var process=Process.GetProcessById(pid);if(!String.Equals(process.ProcessName,"eurotrucks2",StringComparison.OrdinalIgnoreCase))throw new Exception("wrong-process");
         IntPtr handle=OpenProcess(ReadRights,false,pid);if(handle==IntPtr.Zero)throw new Exception("read-access-denied");
@@ -184,10 +281,12 @@ class LiveResearchReader {
             long image=modules[0].ToInt64();var memory=new Memory(handle);byte[] signature=memory.Read(image+SignatureRva,Pattern.Length);
             for(int i=0;i<Pattern.Length;i++)if(Pattern[i]>=0&&Pattern[i]!=signature[i])throw new Exception("loaded-signature-mismatch");
             if(SignatureRva+10+BitConverter.ToInt32(signature,6)!=TrafficSlotRva)throw new Exception("locator-mismatch");
-            Emit(new {status="observation-start",mode="research-read-only",buildSha256=hash,layoutVerified=false,onlinePlayersVerified=false,samplesPerSecond=2});
+            bool nameSignatures=NameSignatures(memory,image);
+            Emit(new {status="observation-start",mode=follow?"automatic-read-only":"research-read-only",buildSha256=hash,layoutVerified=false,onlinePlayersVerified=false,identityVerified=false,nameSignaturesMatched=nameSignatures,samplesPerSecond=follow?4:2});
             if(discover){Discover(memory,image);return 0;}
             var watch=Stopwatch.StartNew();int frame=0;
-            while(watch.Elapsed.TotalSeconds<seconds){
+            while(follow||watch.Elapsed.TotalSeconds<seconds){
+                if(follow&&(parent==null||!parent.Alive())){Emit(new {status="parent-exited",vehicles=new object[0]});break;}
                 uint exitCode;if(!GetExitCodeProcess(handle,out exitCode)||exitCode!=259){Emit(new {status="target-exited",vehicles=new object[0]});break;}
                 var sample=Stopwatch.StartNew();
                 try {
@@ -195,7 +294,7 @@ class LiveResearchReader {
                     long traffic=memory.Ptr(image+TrafficSlotRva),array=traffic+0x210;
                     ulong count=memory.U64(array+16),capacity=memory.U64(array+24);
                     if(count>128||capacity<count||capacity>4096)throw new Exception("array-bounds");
-                    var vehicles=new List<object>();var types=new Dictionary<string,int>();long list=count>0?memory.Ptr(array+8):0;
+                    var vehicles=new List<object>();var placements=new Dictionary<long,Dictionary<string,object>>();var types=new Dictionary<string,int>();long list=count>0?memory.Ptr(array+8):0;
                     byte[] pointers=count>0?memory.Read(list,(int)count*8):new byte[0];var seen=new HashSet<long>();
                     for(int i=0;i<(int)count;i++){
                         long vehicle=BitConverter.ToInt64(pointers,i*8);if(!Valid(vehicle)||(vehicle&7)!=0)throw new Exception("invalid-vehicle-pointer");
@@ -203,12 +302,17 @@ class LiveResearchReader {
                         long obj=vehicle;if(!seen.Add(obj))continue;
                         string type=memory.TypeName(obj,image);if(!types.ContainsKey(type))types[type]=0;types[type]++;
                         var placement=Placement(memory.Read(vehicle+0x28,32));placement["id"]=Digest(Encoding.ASCII.GetBytes(Salt+obj.ToString("x",CultureInfo.InvariantCulture))).Substring(0,12);
-                        placement["objectType"]=type;placement["classification"]="traffic-player-vehicle-candidate";vehicles.Add(placement);
+                        placement["objectType"]=type;placement["classification"]="traffic-player-vehicle-candidate";vehicles.Add(placement);placements.Add(vehicle,placement);
                     }
                     if(memory.Ptr(image+TrafficSlotRva)!=traffic||memory.U64(array+16)!=count||(count>0&&memory.Ptr(array+8)!=list))throw new Exception("snapshot-changed");
-                    Emit(new {status="candidate-sample",frame=frame,elapsedMs=watch.ElapsedMilliseconds,readMs=sample.Elapsed.TotalMilliseconds,arrayCount=count,types=types,vehicles=vehicles,ownTelemetry=OwnPose(pid),layoutVerified=false,onlinePlayersVerified=false});
+                    string nameStatus=nameSignatures?"available":"signature-mismatch";int named=0;
+                    if(nameSignatures){try{var names=ResolveNames(memory.Read,image,seen);foreach(var pair in names){Dictionary<string,object> placement;if(placements.TryGetValue(pair.Key,out placement)){placement["name"]=pair.Value;placement["nameBinding"]="native-session-actor";placement["identityVerified"]=false;named++;}}}catch(Exception ex){nameStatus=SafeReason(ex);}}
+                    // A name scan may take time: recheck all traffic membership before publishing it.
+                    if(memory.Ptr(image+TrafficSlotRva)!=traffic||memory.U64(array+16)!=count||memory.U64(array+24)!=capacity||(count>0&&memory.Ptr(array+8)!=list))throw new Exception("snapshot-changed");
+                    byte[] membership=count>0?memory.Read(list,(int)count*8):new byte[0];for(int i=0;i<pointers.Length;i++)if(pointers[i]!=membership[i])throw new Exception("snapshot-changed");
+                    Emit(new {status="candidate-sample",frame=frame,elapsedMs=watch.ElapsedMilliseconds,readMs=sample.Elapsed.TotalMilliseconds,arrayCount=count,types=types,vehicles=vehicles,ownTelemetry=OwnPose(pid),layoutVerified=false,onlinePlayersVerified=false,identityVerified=false,nameStatus=nameStatus,namedPlayers=named});
                 }catch(Exception ex){Emit(new {status="sample-refused",frame=frame,elapsedMs=watch.ElapsedMilliseconds,reason=SafeReason(ex),vehicles=new object[0],layoutVerified=false});}
-                frame++;Thread.Sleep(500);
+                frame++;Thread.Sleep(follow?250:500);
             }
             Emit(new {status="observation-finished",frames=frame});return 0;
         }finally{CloseHandle(handle);}
@@ -216,10 +320,11 @@ class LiveResearchReader {
     public static int Main(string[] args){
         try {
             if(args.Length==1&&args[0]=="--self-test")return SelfTest();
-            if(args.Length==5&&args[0]=="--observe"&&args[1]=="--pid"&&args[3]=="--seconds")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),Int32.Parse(args[4],CultureInfo.InvariantCulture),false,false);
-            if(args.Length==3&&args[0]=="--discover"&&args[1]=="--pid")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),1,true,false);
-            if(args.Length==5&&args[0]=="--trace-lists"&&args[1]=="--pid"&&args[3]=="--seconds")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),Int32.Parse(args[4],CultureInfo.InvariantCulture),false,true);
-            Emit(new {status="refused",reason="explicit-self-test-or-observe-required"});return 2;
+            if(args.Length==5&&args[0]=="--observe"&&args[1]=="--pid"&&args[3]=="--seconds")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),Int32.Parse(args[4],CultureInfo.InvariantCulture),false,false,false,null);
+            if(args.Length==5&&args[0]=="--follow"&&args[1]=="--pid"&&args[3]=="--parent-pid")return Follow(Int32.Parse(args[2],CultureInfo.InvariantCulture),Int32.Parse(args[4],CultureInfo.InvariantCulture));
+            if(args.Length==3&&args[0]=="--discover"&&args[1]=="--pid")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),1,true,false,false,null);
+            if(args.Length==5&&args[0]=="--trace-lists"&&args[1]=="--pid"&&args[3]=="--seconds")return Observe(Int32.Parse(args[2],CultureInfo.InvariantCulture),Int32.Parse(args[4],CultureInfo.InvariantCulture),false,true,false,null);
+            Emit(new {status="refused",reason="explicit-self-test-observe-or-follow-required"});return 2;
         }catch(Exception ex){Emit(new {status="refused",reason=SafeReason(ex)});return 1;}
     }
 }

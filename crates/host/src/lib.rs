@@ -474,7 +474,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     let mut web_sdk_liveness = Liveness::default();
     let mut coach_watch = coach::Watch::default();
     let mut last_web_post = Instant::now();
-    let mut last_map_projection = Instant::now();
+    let mut last_convoy_post = Instant::now();
     while !stop.load(Ordering::Relaxed) {
         pump_messages();
         host.heartbeat.fetch_add(1, Ordering::Release);
@@ -947,7 +947,6 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
                     }
                 }
                 Some(PageMessage::Startup { stage }) => startup::mark(&format!("page: {stage}")),
-                Some(PageMessage::WebMapProjection { projection }) => config.remote.publish_map_projection(projection),
                 Some(PageMessage::Guidance { line }) => log!("route: the cab's guidance, {line}"),
                 Some(PageMessage::TruckStrip { strip }) => {
                     let mut settings = config.settings.get();
@@ -1738,11 +1737,13 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
             }
         }
 
-        if last_map_projection.elapsed() >= Duration::from_millis(100) {
-            last_map_projection = Instant::now();
-            if let Some(request) = config.remote.map_projection_request() {
-                let _ = webview.post_json(&request.to_string());
-            }
+        if last_convoy_post.elapsed() >= Duration::from_millis(250) {
+            last_convoy_post = Instant::now();
+            let plugin = &bridge.bridge().plugin;
+            let pid = (game_running && bridge.matches() && !truckersmp)
+                .then(|| plugin.pid.load(Ordering::Acquire)).filter(|pid| *pid != 0);
+            config.remote.update_convoy_pid(pid);
+            let _ = webview.post_json(&config.remote.convoy_snapshot().to_string());
         }
         if last_telemetry_post.elapsed() >= Duration::from_millis(50) {
             last_telemetry_post = Instant::now();
@@ -2397,9 +2398,6 @@ fn cab_webview(stage: &Stage, width: u32, height: u32, user_data: &std::path::Pa
 #[derive(Debug, PartialEq, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum PageMessage {
-    WebMapProjection {
-        projection: westplay_remote::projection::MapProjection,
-    },
     /// Posted when the page (re)loads.
     Ready,
     /// A startup stage the page reached (the boot screens shown), for the startup log (`startup`).

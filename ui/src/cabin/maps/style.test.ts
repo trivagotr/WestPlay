@@ -1,7 +1,7 @@
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec'
 import { describe, expect, it } from 'vitest'
 import { cameraBounds, type MapData } from './mapData'
-import { mapStyle } from './style'
+import { CONVOY_SOURCE, PLAYERS_SOURCE, mapStyle } from './style'
 
 const data: MapData = {
   tiles: 'http://localhost/map/tiles-1/{z}/{x}/{y}.pbf',
@@ -61,4 +61,12 @@ describe('the map style', () => {
       [1.2, 1.7],
     ])
   })
+})
+
+// The local Convoy layer is baked into the cabin GPS, separately from TruckersMP.
+it('keeps native Convoy positions in their own map source and layer', () => {
+  const style = mapStyle('dark', data)
+  expect(CONVOY_SOURCE).not.toBe(PLAYERS_SOURCE)
+  expect(style.sources[CONVOY_SOURCE].type).toBe('geojson')
+  expect(style.layers.find(layer => layer.id === 'convoy-players')).toMatchObject({ type: 'circle', source: CONVOY_SOURCE })
 })

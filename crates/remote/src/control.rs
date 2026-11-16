@@ -41,8 +41,7 @@ pub fn interfaces() -> Vec<Interface> {
 
 pub(crate) struct Run {
     pub dashboard: Mutex<crate::dashboard::Dashboard>,
-    pub projection: Mutex<crate::projection::ProjectionStore>,
-    pub observer: crate::convoy::Observer,
+    pub observer: Arc<crate::convoy::Observer>,
     pub host: String,
     pub bind: Ipv4Addr,
     pub stop: AtomicBool,
@@ -61,8 +60,7 @@ impl Run {
     pub(crate) fn new(host: String, bind: Ipv4Addr, encoder: String) -> Self {
         Self {
             dashboard: Mutex::new(crate::dashboard::Dashboard::default()),
-            projection: Mutex::new(crate::projection::ProjectionStore::default()),
-            observer: crate::convoy::Observer::default(),
+            observer: Arc::new(crate::convoy::Observer::default()),
             host,
             bind,
             stop: AtomicBool::new(false),
@@ -80,8 +78,6 @@ impl Run {
     }
     pub fn release(&self) {
         self.connected.store(false, Ordering::Release);
-        self.observer.stop();
-        self.projection.lock().unwrap().clear();
         self.inputs.lock().unwrap().push(Input::Cancel);
     }
     pub fn fail(&self, error: String) {
@@ -100,6 +96,7 @@ struct Runner {
 #[derive(Default)]
 pub struct RemoteControl {
     runner: Mutex<Option<Runner>>,
+    convoy: crate::Tracker,
 }
 impl RemoteControl {
     pub fn new() -> Self {
@@ -123,7 +120,9 @@ impl RemoteControl {
         let listener = TcpListener::bind((bind, 0)).map_err(|e| format!("Cannot listen on this interface: {e}"))?;
         listener.set_nonblocking(true).map_err(|e| e.to_string())?;
         let host = listener.local_addr().map_err(|e| e.to_string())?.to_string();
-        let state = Arc::new(Run::new(host, bind, encoder));
+        let mut state = Run::new(host, bind, encoder);
+        state.observer = self.convoy.observer.clone();
+        let state = Arc::new(state);
         let run = state.clone();
         let thread = std::thread::Builder::new()
             .name("westplay-mobile".into())
@@ -186,33 +185,12 @@ impl RemoteControl {
             data.publish(pid, vehicle, Instant::now());
         }
     }
-    /// Ask the existing GPS for screen locations; does not draw anything in the cabin.
-    pub fn map_projection_request(&self) -> Option<serde_json::Value> {
-        let slot = self.runner.try_lock().ok()?;
-        let state = &slot.as_ref()?.state;
-        let now = Instant::now();
-        if !state.connected.load(Ordering::Acquire) || state.dashboard.try_lock().ok()?.pid(now).is_none() {
-            state.projection.try_lock().ok()?.clear();
-            return None;
-        }
-        let Some((key, points)) = state.observer.projection_source(now) else {
-            state.projection.try_lock().ok()?.clear();
-            return None;
-        };
-        let id = state.projection.try_lock().ok()?.request(key, now);
-        Some(serde_json::json!({"type":"webMapProject","id":id,"points":points}))
+    /// Host tick, independent of remote-server enablement and browser connections.
+    pub fn update_convoy_pid(&self, pid: Option<u32>) {
+        self.convoy.update_pid(pid);
     }
-    pub fn publish_map_projection(&self, reply: crate::projection::MapProjection) {
-        if let Ok(slot) = self.runner.try_lock()
-            && let Some(r) = slot.as_ref()
-        {
-            let now = Instant::now();
-            if let Some((key, _)) = r.state.observer.projection_source(now)
-                && let Ok(mut projection) = r.state.projection.try_lock()
-            {
-                projection.accept(key, reply, now);
-            }
-        }
+    pub fn convoy_snapshot(&self) -> serde_json::Value {
+        self.convoy.native_snapshot()
     }
     pub fn report_error(&self, message: String) {
         if let Ok(slot) = self.runner.try_lock()
@@ -234,5 +212,23 @@ impl RemoteControl {
 impl Drop for RemoteControl {
     fn drop(&mut self) {
         let _ = self.configure(None);
+    }
+}
+
+#[cfg(test)]
+mod convoy_lifetime_tests {
+    use super::*;
+    #[test]
+    fn stopping_web_server_does_not_cancel_native_convoy() {
+        let remote = RemoteControl::default();
+        let mut state = Run::new("127.0.0.1:1".into(), Ipv4Addr::LOCALHOST, "fixture".into());
+        state.observer = remote.convoy.observer.clone();
+        let state = Arc::new(state);
+        let generation = state.observer.begin();
+        state.observer.data.lock().unwrap().accept(&serde_json::json!({"status":"candidate-sample","vehicles":[{"id":"aaaaaaaaaaaa","x":1.0,"z":2.0},{"id":"bbbbbbbbbbbb","x":10.0,"z":2.0}],"ownTelemetry":{"x":1.0,"z":2.0}}),Instant::now());
+        *remote.runner.lock().unwrap() = Some(Runner { state: state.clone(), thread: std::thread::spawn(|| {}) });
+        remote.configure(None).unwrap();
+        assert!(state.observer.is_current(generation));
+        assert_eq!(remote.convoy_snapshot()["players"].as_array().unwrap().len(), 1);
     }
 }

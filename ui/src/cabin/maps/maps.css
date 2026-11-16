@@ -919,3 +919,14 @@
   pointer-events: none;
   transition-duration: 900ms;
 }
+
+/* Convoy names are native map labels, clipped and transformed with its viewport. */
+.map-convoy-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 650;
+  pointer-events: none;
+}

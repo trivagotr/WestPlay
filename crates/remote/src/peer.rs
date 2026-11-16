@@ -82,59 +82,8 @@ pub async fn answer(state: Arc<Run>, offer: RTCSessionDescription) -> Result<RTC
     pc.on_data_channel(Box::new(move |channel| {
         let s = s.clone();
         Box::pin(async move {
-            let overlay = channel.label() == "map-overlay";
-            if (overlay && (channel.ordered() || channel.max_packet_lifetime().is_none_or(|ms| ms == 0 || ms > 150)))
-                || (!overlay && channel.label() != "control")
-            {
+            if channel.label() != "control" {
                 let _ = channel.close().await;
-                return;
-            }
-            if overlay {
-                let overlay_state = s.clone();
-                let overlay_channel = Arc::downgrade(&channel);
-                tokio::spawn(async move {
-                    let start = Instant::now();
-                    let mut ever_connected = false;
-                    let mut last_packet = String::new();
-                    loop {
-                        tokio::time::sleep(Duration::from_millis(100)).await;
-                        let Some(channel) = overlay_channel.upgrade() else { break };
-                        use webrtc::data_channel::data_channel_state::RTCDataChannelState;
-                        if overlay_state.stop.load(Ordering::Acquire)
-                            || matches!(
-                                channel.ready_state(),
-                                RTCDataChannelState::Closed | RTCDataChannelState::Closing
-                            )
-                        {
-                            break;
-                        }
-                        let connected = overlay_state.connected.load(Ordering::Acquire);
-                        if !connected {
-                            if ever_connected || start.elapsed() > Duration::from_secs(15) { break } else { continue }
-                        }
-                        ever_connected = true;
-                        if channel.ready_state() != RTCDataChannelState::Open || channel.buffered_amount().await > 16384
-                        {
-                            continue;
-                        }
-                        let now = Instant::now();
-                        let key = overlay_state.observer.projection_source(now).map(|(key, _)| key);
-                        let packet = {
-                            let projection = overlay_state.projection.lock().unwrap();
-                            serde_json::json!({"type":"mapOverlay","projection":projection.get(key,now)}).to_string()
-                        };
-                        if packet == last_packet {
-                            continue;
-                        }
-                        last_packet = packet.clone();
-                        if !matches!(
-                            tokio::time::timeout(Duration::from_millis(150), channel.send_text(packet)).await,
-                            Ok(Ok(_))
-                        ) {
-                            break;
-                        }
-                    }
-                });
                 return;
             }
             let weak = Arc::downgrade(&channel);

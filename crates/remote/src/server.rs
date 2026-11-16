@@ -28,10 +28,6 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
         )
         .route("/style.css", get(|| async { asset("text/css; charset=utf-8", include_str!("../web/style.css")) }))
         .route(
-            "/gps-overlay.js",
-            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/gps-overlay.js")) }),
-        )
-        .route(
             "/instruments.js",
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/instruments.js")) }),
         )
@@ -179,22 +175,16 @@ async fn convoy(State(state): State<Arc<Run>>, Json(auth): Json<Observe>) -> Res
     if auth.token.len() > 128 || !state.authorized(&auth.token) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    if auth.enabled {
-        let pid = state.dashboard.lock().unwrap().pid(Instant::now());
-        let Some(pid) = pid.filter(|_| state.connected.load(Ordering::Acquire)) else {
-            return (StatusCode::CONFLICT, "Game and mobile screen must be connected.").into_response();
-        };
-        crate::convoy::start(state.clone(), pid);
-    } else {
-        state.observer.stop();
-    }
-    Json(serde_json::json!({"ok":true})).into_response()
+    // Older clients may still send this command. Tracking is now host-owned;
+    // neither a mobile connection nor a manual command controls its lifetime.
+    let _ = auth.enabled;
+    Json(serde_json::json!({"ok":true,"automatic":true})).into_response()
 }
 async fn diagnostics(State(state): State<Arc<Run>>, Json(auth): Json<Auth>) -> Response {
     if auth.token.len() > 128 || !state.authorized(&auth.token) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
-    Json(serde_json::json!({"schema":"westplay-web-diagnostics-v1","convoy":state.observer.data.lock().unwrap().logs(),"capabilities":{"passengerSatisfaction":false,"laneAssist":false,"completeRoster":false}})).into_response()
+    Json(serde_json::json!({"schema":"westplay-web-diagnostics-v1","convoy":state.observer.data.lock().unwrap().logs(),"capabilities":{"passengerSatisfaction":true,"laneAssist":false,"completeRoster":false}})).into_response()
 }
 
 #[cfg(test)]

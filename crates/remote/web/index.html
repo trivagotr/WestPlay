@@ -240,10 +240,6 @@
               <span>CANLI EKRAN</span><span>GPS / MEDYA</span>
             </div>
             <div id="surface">
-              <svg
-                id="gps-overlay"
-                aria-label="GPS üzerindeki arkadaş araçları"
-              ></svg>
               <video
                 id="video"
                 autoplay
@@ -263,22 +259,19 @@
               <h2>Konvoy</h2>
               <span class="tag">DENEYSEL</span>
             </div>
-            <p id="gps-overlay-status" class="gps-overlay-status" role="status">
-              Arkadaşlar GPS üzerinde gösterilir
+            <p class="convoy-map-note">
+              Oyuncular isimleriyle GPS üzerinde gösterilir.
             </p>
             <div class="convoy-summary">
               <strong id="friend-count">0 araç</strong
               ><span id="sample-count">Henüz ölçüm yok</span>
             </div>
-            <p id="convoy-state" role="status">Tarama kapalı</p>
+            <p id="convoy-state" role="status">Otomatik bağlantı bekleniyor</p>
             <ul id="friend-list" class="friend-list"></ul>
-            <div class="convoy-buttons">
-              <button id="convoy-start" type="button">Arkadaşları ara</button
-              ><button id="convoy-stop" type="button" disabled>Durdur</button>
-            </div>
             <p class="panel-note">
-              120 sn test · yalnızca yakından okunabilen araçlar. Konvoy üyeliği
-              ve tüm oyuncular henüz doğrulanmıyor. Kaybolan konum tutulmaz.
+              Oyun bağlantısıyla otomatik başlar. Yalnızca okunabilen yakın
+              oyuncular gösterilir; tüm Konvoy listesi henüz doğrulanmadı.
+              Güncelliğini yitiren konumlar kaldırılır.
             </p>
             <div class="coach-card">
               <div class="panel-heading">

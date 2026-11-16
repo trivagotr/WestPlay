@@ -77,17 +77,37 @@ export class DiagnosticLog {
   }
 }
 const statusText = {
-  starting: "Okuyucu hazırlanıyor",
+  starting: "Otomatik bağlantı hazırlanıyor",
+  "waiting-game": "Oyun bağlantısı bekleniyor",
+  retrying: "Otomatik bağlantı yeniden deneniyor",
+  unsupported: "Oyun sürümü bu okuyucuyla uyumlu değil",
+  "reader-refused": "Otomatik okuyucu bağlantısı kurulamadı",
+  "reader-invalid-output": "Okuyucu verisi doğrulanamadı",
+  truckersmp: "TruckersMP oyuncuları GPS üzerinde",
   observing: "Yakın araçlar izleniyor",
   "sample-unavailable": "Konum doğrulanamadı",
   "ownership-changed": "Kendi aracımızın eşleşmesi değişti",
-  stopped: "Tarama kapalı",
-  finished: "Test tamamlandı · yeniden başlatabilirsin",
+  stopped: "Oyun bağlantısı bekleniyor",
+  finished: "Otomatik bağlantı yeniden deneniyor",
   "reader-missing": "Konvoy okuyucusu pakette bulunamadı",
   "reader-start-failed": "Okuyucu başlatılamadı",
   "build-mismatch": "Oyun sürümü bu okuyucuyla uyumlu değil",
   "image-fingerprint": "Oyun dosyası desteklenmiyor",
 };
+export function convoyView(convoy = {}) {
+  const players = convoy.fresh === true && Array.isArray(convoy.players)
+    ? convoy.players.slice(0, 128).filter(point => point && finite(point.distance, 0, 34000000) !== null).map(point => {
+        const name = typeof point.name === "string"
+          ? Array.from(point.name.replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "").trim()).slice(0, 80).join("")
+          : "";
+        return {name: name || "İsim bekleniyor", distance:point.distance};
+      })
+    : [];
+  return {
+    players,
+    status: statusText[convoy.status] || (convoy.status ? "Konum verisi alınamıyor" : "Otomatik bağlantı bekleniyor"),
+  };
+}
 export function createDashboard({ request, getToken }) {
   const $ = (id) => document.getElementById(id),
     log = new DiagnosticLog();
@@ -96,8 +116,7 @@ export function createDashboard({ request, getToken }) {
     timer = null,
     watch = null,
     lastAt = 0,
-    lastSnapshot = {},
-    observing = false;
+    lastSnapshot = {};
   mountSymbols(document);
   function put(id, value) {
     $(id).textContent = value;
@@ -239,27 +258,16 @@ export function createDashboard({ request, getToken }) {
       $("coach-meter").setAttribute("aria-valuenow", String(passenger.percent));
     else $("coach-meter").removeAttribute("aria-valuenow");
     const c = snapshot.connected === true ? snapshot.convoy || {} : {};
-    const players = c.fresh === true ? c.players || [] : [];
+    const convoy = convoyView(c);
+    const players = convoy.players;
     put("friend-count", players.length + " araç");
-    put(
-      "convoy-state",
-      statusText[c.status] ||
-        (c.status ? "Konum verisi alınamıyor · " + c.status : "Tarama kapalı"),
-    );
-    observing = [
-      "starting",
-      "observing",
-      "sample-unavailable",
-      "ownership-changed",
-    ].includes(c.status);
-    $("convoy-start").disabled = !connected || observing;
-    $("convoy-stop").disabled = !observing;
+    put("convoy-state", convoy.status);
     const rows = $("friend-list");
     rows.replaceChildren();
     players.forEach((point) => {
       const li = document.createElement("li");
       const label = document.createElement("span");
-      label.textContent = "Araç " + point.marker;
+      label.textContent = point.name;
       const distance = document.createElement("strong");
       distance.textContent =
         point.distance >= 1000
@@ -321,30 +329,6 @@ export function createDashboard({ request, getToken }) {
     clearInterval(watch);
     render();
   }
-  $("convoy-start").onclick = async () => {
-    const button = $("convoy-start");
-    button.disabled = true;
-    try {
-      await request("/convoy", { token: getToken(), enabled: true });
-      log.record("convoy-start");
-    } catch (error) {
-      put(
-        "convoy-state",
-        "Başlatılamadı · bağlantıyı ve oyun sürümünü kontrol et",
-      );
-      log.record("convoy-error", { httpStatus: error.status });
-    } finally {
-      button.disabled = observing;
-    }
-  };
-  $("convoy-stop").onclick = async () => {
-    try {
-      await request("/convoy", { token: getToken(), enabled: false });
-      log.record("convoy-stop");
-    } catch (error) {
-      log.record("convoy-error", { httpStatus: error.status });
-    }
-  };
   $("diagnostics").onclick = async () => {
     const button = $("diagnostics");
     button.disabled = true;
