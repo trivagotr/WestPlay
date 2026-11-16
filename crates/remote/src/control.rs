@@ -57,6 +57,7 @@ impl VehicleSignals {
     }
 }
 pub(crate) struct Run {
+    pub shell: Arc<Mutex<crate::ShellStyle>>,
     pub signals: Mutex<VehicleSignals>,
     pub dashboard: Mutex<crate::dashboard::Dashboard>,
     pub observer: Arc<crate::convoy::Observer>,
@@ -77,6 +78,7 @@ pub(crate) struct Run {
 impl Run {
     pub(crate) fn new(host: String, bind: Ipv4Addr, encoder: String) -> Self {
         Self {
+            shell: Arc::new(Mutex::new(crate::ShellStyle::default())),
             signals: Mutex::new(VehicleSignals { left: None, right: None, paused: true, updated: Instant::now() }),
             dashboard: Mutex::new(crate::dashboard::Dashboard::default()),
             observer: Arc::new(crate::convoy::Observer::default()),
@@ -116,6 +118,7 @@ struct Runner {
 pub struct RemoteControl {
     runner: Mutex<Option<Runner>>,
     convoy: crate::Tracker,
+    shell: Arc<Mutex<crate::ShellStyle>>,
 }
 impl RemoteControl {
     pub fn new() -> Self {
@@ -141,6 +144,7 @@ impl RemoteControl {
         let host = listener.local_addr().map_err(|e| e.to_string())?.to_string();
         let mut state = Run::new(host, bind, encoder);
         state.observer = self.convoy.observer.clone();
+        state.shell = self.shell.clone();
         let state = Arc::new(state);
         let run = state.clone();
         let thread = std::thread::Builder::new()
@@ -218,6 +222,12 @@ impl RemoteControl {
     /// Host tick, independent of remote-server enablement and browser connections.
     pub fn update_convoy_pid(&self, pid: Option<u32>) {
         self.convoy.update_pid(pid);
+    }
+    /// Tiny metadata only; never samples or copies a live video frame.
+    pub fn publish_shell_style(&self, style: crate::ShellStyle) {
+        if style.valid() {
+            *self.shell.lock().unwrap() = style;
+        }
     }
     pub fn convoy_snapshot(&self) -> serde_json::Value {
         self.convoy.native_snapshot()

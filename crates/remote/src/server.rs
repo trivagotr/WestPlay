@@ -30,11 +30,26 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
             "/geometry.js",
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/geometry.js")) }),
         )
-        .route("/signals.js", get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/signals.js")) }))
+        .route(
+            "/signals.js",
+            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/signals.js")) }),
+        )
         .route("/style.css", get(|| async { asset("text/css; charset=utf-8", include_str!("../web/style.css")) }))
         .route(
             "/instruments.js",
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/instruments.js")) }),
+        )
+        .route(
+            "/shell-style.js",
+            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/shell-style.js")) }),
+        )
+        .route(
+            "/fonts/instrument-sans.woff2",
+            get(|| async { font(include_bytes!("../web/fonts/instrument-sans.woff2")) }),
+        )
+        .route(
+            "/fonts/instrument-sans-latin-ext.woff2",
+            get(|| async { font(include_bytes!("../web/fonts/instrument-sans-latin-ext.woff2")) }),
         )
         .route("/pair", post(pair))
         .route("/offer", post(offer))
@@ -82,6 +97,9 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
     }
 }
 
+fn font(bytes: &'static [u8]) -> Response {
+    ([(header::CONTENT_TYPE, "font/woff2")], Body::from(bytes)).into_response()
+}
 fn asset(kind: &'static str, text: &'static str) -> Response {
     ([(header::CONTENT_TYPE, kind)], Body::from(text)).into_response()
 }
@@ -165,6 +183,7 @@ async fn dashboard(State(state): State<Arc<Run>>, Json(auth): Json<Auth>) -> Res
     let now = Instant::now();
     let mut snapshot = state.dashboard.lock().unwrap().snapshot(now);
     snapshot["convoy"] = state.observer.data.lock().unwrap().snapshot(now);
+    snapshot["shell"] = serde_json::to_value(state.shell.lock().unwrap().clone()).unwrap();
     if snapshot["connected"] != true {
         snapshot["convoy"]["players"] = serde_json::json!([]);
     }
@@ -204,9 +223,9 @@ mod tests {
         stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
         let origin = origin.map(|v| format!("Origin: {v}\r\n")).unwrap_or_default();
         write!(stream, "{method} {path} HTTP/1.1\r\nHost: {host}\r\n{origin}Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
-        let mut response = String::new();
-        stream.read_to_string(&mut response).unwrap();
-        response
+        let mut response = Vec::new();
+        stream.read_to_end(&mut response).unwrap();
+        String::from_utf8_lossy(&response).into_owned()
     }
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn actual_http_rejects_foreign_origin_missing_origin_and_second_pairing() {
@@ -246,6 +265,13 @@ mod tests {
         assert!(qr_response.contains(token), "rescanning QR retains the same session");
         assert!(request(&host, "POST", "/pair", Some(&origin), &body).starts_with("HTTP/1.1 401"));
         assert!(request(&host, "GET", "/", None, "").contains("frame-ancestors 'none'"));
+        let font = request(&host, "GET", "/fonts/instrument-sans.woff2", None, "");
+        assert!(font.starts_with("HTTP/1.1 200") && font.contains("font/woff2"));
+        let style = serde_json::json!({"appearance":"light","palette":["#ddeeff","#ccddee","#bbccee"]});
+        *state.shell.lock().unwrap() = serde_json::from_value(style.clone()).unwrap();
+        let dashboard = request(&host, "POST", "/dashboard", Some(&origin), &auth);
+        let payload: serde_json::Value = serde_json::from_str(dashboard.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(payload["shell"], style);
         state.stop.store(true, Ordering::Release);
         assert!(!state.authorized(token));
         tokio::time::timeout(Duration::from_secs(3), task).await.unwrap().unwrap();

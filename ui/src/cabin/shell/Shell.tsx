@@ -1,3 +1,4 @@
+import { useWebShellStyle } from './webShellStyle'
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { isInHost, postToHost } from '../../shared/host'
 import { cursorArea } from './cursorArea'
@@ -36,6 +37,7 @@ export function Shell({ children, overlay, entering = false }: ShellProps) {
   useLookChanges()
   usePreparedIcons()
   const { appearance, wallpaperSrc } = useLook()
+  useWebShellStyle(appearance, wallpaperSrc)
   const profile = useScreenProfile()
   const stripId = useOemStrip()
   const strip = stripId && OEM_STRIPS[stripId]

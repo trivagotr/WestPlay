@@ -41,3 +41,9 @@ Sinyaller 500ms panel sorgusundan ayrıldı. Ayrı sırasız/tekrarsız WebRTC k
 Sağdaki Konvoy listesi kaldırıldı; otomatik GPS işaretleri devam eder. Sağ sefer panelinde kalite(memnuniyet/yük hasarı), yolcu sayısı, hedef, planlanan varış veya teslim sonu ve gecikme alanları bulunur. Coaches’ta sayı/hedef/saat/gecikme özellikleri henüz belgelenmemiş ve doğrulanmamıştır; bu alanlar kaynak yokken çizgi kalır. bus_job yapılandırması özellik ad/tiplerini sınırlı yerel eklenti loguna yazar; şehir/kişi değerleri loga alınmaz. Aktif otobüs seferindeki canlı yapılandırma örneği bu alanların devamı için gereklidir.
 
 Tam ekranda alt araç çubuğu ve klavye formu gizlenir. Escape veya cihazın tam ekran çıkış hareketiyle geri dönülebilir. APK ve oyun içi panelin düzeni değiştirilmez.
+
+## Tabletle aynı görünüm
+
+Web çerçevesi tabletin Instrument Sans yazısı, yuvarlak cam panelleri, nötr yüzeyleri ve açık/koyu görünümünü kullanır. Tabletin duvar kâğıdı değiştiğinde üç küçük renk özeti ile çevredeki yüzeyler uyum sağlar; görüntü veya özel dosya yolu gönderilmez. Örnekleme yalnız duvar kâğıdı değişirken yapılır; video akışı ikinci kez çözülmez ve sürekli piksel kopyalanmaz. Renk kaynağı okunamazsa aynı görünümde nötr palet korunur. Yazı tipleri yerel sunucudan gelir.
+
+QR girişi, telefon/tablet yerleşimi, gerçek sinyal fazı, sefer kartları, odak görünümü ve tam ekrandaki gizli araç çubuğu korunur. Bu görünüm güncellemesi yeni EXE ve UI dosyalarıyla çalışır; önceki Sefer Paneli sürümünün oyun DLL’si ve APK’sı değişmez.

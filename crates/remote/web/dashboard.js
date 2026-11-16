@@ -1,3 +1,4 @@
+import { applyShellStyle } from "./shell-style.js";
 import {
   icon,
   applyIndicator,
@@ -136,7 +137,9 @@ export function journeyView(v) {
         ? v.job.active === false
           ? null
           : v.cargoDamage
-        : v.job.active === false ? null : passenger.percent,
+        : v.job.active === false
+          ? null
+          : passenger.percent,
       kind: cargo ? "cargo" : "coach",
     },
     status:
@@ -186,6 +189,7 @@ export function createDashboard({ request, getToken }) {
   }
   function render(snapshot = {}) {
     lastSnapshot = snapshot;
+    applyShellStyle(document.documentElement, snapshot.shell);
     const v = vehicleView(snapshot);
     const connected =
       snapshot.connected === true &&
@@ -353,7 +357,16 @@ export function createDashboard({ request, getToken }) {
     put("trip-schedule", gameClock(v.job.scheduledArrivalMinutes));
     put("trip-delay", delayLabel(v.job.delayMinutes));
     $("trip-delay-row").dataset.late = String(v.job.delayMinutes > 0);
-    put("trip-status", trip.status + (v.coach === true && (!v.job.destination || v.job.passengerCount === null || v.job.scheduledArrivalMinutes === null) ? " · Sefer ayrıntıları bekleniyor" : ""));
+    put(
+      "trip-status",
+      trip.status +
+        (v.coach === true &&
+        (!v.job.destination ||
+          v.job.passengerCount === null ||
+          v.job.scheduledArrivalMinutes === null)
+          ? " · Sefer ayrıntıları bekleniyor"
+          : ""),
+    );
   }
   async function poll(epoch) {
     if (!active || epoch !== generation) return;

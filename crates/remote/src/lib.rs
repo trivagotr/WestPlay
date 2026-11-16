@@ -24,3 +24,6 @@ pub fn allowed_address(ip: Ipv4Addr) -> bool {
 pub fn valid_origin(host: &str, origin: &str) -> bool {
     origin == format!("http://{host}")
 }
+
+mod shell_style;
+pub use shell_style::ShellStyle;

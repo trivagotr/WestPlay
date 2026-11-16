@@ -1,3 +1,4 @@
+import type { WebShellStyle } from './webShellStyle'
 import type { ConvoyMessage } from './convoy'
 import type { PhoneState, PhoneNotificationEvent } from './phone'
 import type { CustomWallpaper, IconSet } from './customize'
@@ -313,6 +314,7 @@ export function toEqualizer(value: unknown): Equalizer {
 }
 
 export type PageMessage =
+  | { type: 'webShellStyle'; style: WebShellStyle }
   | { type: 'ready' }
   /** A startup stage reached (the boot screens shown), for the host's startup log. */
   | { type: 'startup'; stage: string }

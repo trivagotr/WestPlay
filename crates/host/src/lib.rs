@@ -948,6 +948,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
                         (config.on_status)(&status);
                     }
                 }
+                Some(PageMessage::WebShellStyle { style }) => config.remote.publish_shell_style(style),
                 Some(PageMessage::Startup { stage }) => startup::mark(&format!("page: {stage}")),
                 Some(PageMessage::Guidance { line }) => log!("route: the cab's guidance, {line}"),
                 Some(PageMessage::TruckStrip { strip }) => {
@@ -2411,6 +2412,7 @@ fn cab_webview(stage: &Stage, width: u32, height: u32, user_data: &std::path::Pa
 #[derive(Debug, PartialEq, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum PageMessage {
+    WebShellStyle {style: westplay_remote::ShellStyle},
     /// Posted when the page (re)loads.
     Ready,
     /// A startup stage the page reached (the boot screens shown), for the startup log (`startup`).
