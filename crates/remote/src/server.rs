@@ -23,6 +23,10 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/client.js")) }),
         )
         .route(
+            "/pairing.js",
+            get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/pairing.js")) }),
+        )
+        .route(
             "/geometry.js",
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/geometry.js")) }),
         )
@@ -114,7 +118,7 @@ struct Code {
     code: String,
 }
 async fn pair(State(state): State<Arc<Run>>, Json(code): Json<Code>) -> Response {
-    if code.code.len() > 16 {
+    if code.code.len() > 64 {
         return StatusCode::BAD_REQUEST.into_response();
     }
     match state.pairing.lock().unwrap().pair(&code.code, Instant::now()) {
@@ -235,6 +239,10 @@ mod tests {
                 .starts_with("HTTP/1.1 401")
         );
 
+        let qr_body = serde_json::json!({"code":state.pairing.lock().unwrap().invitation()}).to_string();
+        let qr_response = request(&host, "POST", "/pair", Some(&origin), &qr_body);
+        assert!(qr_response.starts_with("HTTP/1.1 200"));
+        assert!(qr_response.contains(token), "rescanning QR retains the same session");
         assert!(request(&host, "POST", "/pair", Some(&origin), &body).starts_with("HTTP/1.1 401"));
         assert!(request(&host, "GET", "/", None, "").contains("frame-ancestors 'none'"));
         state.stop.store(true, Ordering::Release);

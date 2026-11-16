@@ -53,3 +53,23 @@ fn only_private_ipv4_and_exact_same_origin_are_accepted() {
     assert!(!valid_origin("192.168.1.10:8123", "https://evil.test"));
     assert!(!valid_origin("192.168.1.10:8123", "null"));
 }
+
+#[test]
+fn qr_invitation_pairs_without_code_and_survives_rescans_but_not_reset() {
+    let now = Instant::now();
+    let mut p = Pairing::new(now);
+    let invite = p.invitation().to_owned();
+    assert_eq!(invite.len(), 48);
+    assert_ne!(invite, p.code());
+    assert_eq!(p.invitation_url("http://192.168.1.5:8123/"), format!("http://192.168.1.5:8123/#pair={invite}"));
+    for _ in 0..5 {
+        assert!(p.pair("wrong", now).is_err());
+    }
+    let token = p.pair(&invite, now + Duration::from_secs(121)).unwrap();
+    assert!(p.authorized(&token, now + Duration::from_secs(122)));
+    assert_eq!(p.pair(&invite, now + Duration::from_secs(123)).unwrap(), token);
+    assert!(p.pair(&invite, now + Duration::from_secs(43201)).is_err());
+    p.reset(now);
+    assert!(p.pair(&invite, now).is_err());
+    assert!(!p.authorized(&token, now));
+}

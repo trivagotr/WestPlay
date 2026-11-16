@@ -108,8 +108,8 @@ export function MobileControl() {
           </select>
           <p>
             {tr
-              ? 'Yalnızca güvendiğin özel ağda aç. QR kodu 2 dakika içinde okut ve PC’deki kodu telefona gir. Yenilemek için kapatıp aç.'
-              : 'Enable only on a trusted private network. Scan within 2 minutes and enter the PC code on your phone. Toggle off and on for a new code.'}
+              ? 'PC ve telefonu aynı yerel ağa bağla. QR kodunu okut; tarayıcı kod yazmadan otomatik bağlanır.'
+              : 'Connect the PC and phone to the same private network. Scan the QR code; your browser connects automatically without typing a code.'}
           </p>
           {!address && (
             <p>
@@ -139,17 +139,25 @@ export function MobileControl() {
                   ? 'Telefon bekleniyor'
                   : 'Waiting for a phone'}
             </p>
-            <code className="mobile-code">{status.code}</code>
-            <p className="mobile-address">{status.url}</p>
             <p>
               {tr
-                ? 'Bu HTTP adresini telefonun tarayıcısında aç. Yukarıdaki kodu gir; APK gerekmez.'
-                : 'Open this HTTP address in your phone browser and enter the code above. No APK needed.'}
+                ? 'QR kodunu okut, doğrudan bağlan. Kod yazmana veya APK kurmana gerek yok.'
+                : 'Scan the QR code to connect directly. No code to type and no APK required.'}
             </p>
+            <details>
+              <summary>{tr ? 'Adresi elle aç' : 'Open address manually'}</summary>
+              <p className="mobile-address">{status.url}</p>
+              <code className="mobile-code">{status.code}</code>
+              <p>
+                {tr
+                  ? 'Adresi elle açtıysan bu yedek kodu kullan. Kod 2 dakika geçerlidir.'
+                  : 'Use this fallback code if you open the address manually. The code expires after 2 minutes.'}
+              </p>
+            </details>
             <p>
               {tr
-                ? 'Yeni telefon eşlemek için mobil ekranı kapatıp aç.'
-                : 'Turn mobile screen off and on to pair another phone.'}
+                ? 'QR bağlantısı 12 saat geçerlidir. Yeni davet için sunucuyu kapatıp aç.'
+                : 'The QR link is valid for 12 hours. Turn the server off and on for a new invitation.'}
             </p>
           </div>
         </div>

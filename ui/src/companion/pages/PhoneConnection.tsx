@@ -23,8 +23,8 @@ export function PhoneConnection() {
           <p>
             {mode === 'browser'
               ? tr
-                ? 'Uygulama kurmadan ekranı gör ve dokunarak kontrol et. Aşağıdaki tarayıcı sunucusunu aç; HTTP adresini telefonda Chrome veya Safari ile açıp altı haneli kodu gir.'
-                : 'View and control the screen without installing an app. Enable the browser server below, open its HTTP address in Chrome or Safari on your phone, and enter the six-digit code.'
+                ? 'Uygulama kurmadan ekranı gör ve dokunarak kontrol et. Aşağıdaki tarayıcı sunucusunu aç ve QR kodunu okut; kod yazmadan doğrudan bağlan.'
+                : 'View and control the screen without installing an app. Enable the browser server below and scan the QR code to connect directly without typing a code.'
               : tr
                 ? 'Android APK üzerinden pil ve bildirim verilerini oyuna aktar. Aşağıdaki uygulama bağlantısını açıp QR kodunu APK içinden okut. Ekran kontrolü için Tarayıcı seçeneğini kullanabilirsin.'
                 : 'Send battery and notifications to the game with the Android APK. Enable the app link below and scan its QR inside the APK. Use Browser for screen control.'}

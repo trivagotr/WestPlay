@@ -6,7 +6,7 @@
 
 Yeni paketi ayrı klasöre çıkarıp BASLAT.cmd ile başlatın. ETS2 bağlanınca Konvoy okuyucusu kendiliğinden çalışır; tarama düğmesi veya 120 saniye sınırı yoktur. Tarayıcı sunucusu kapalıyken de yerel GPS takibi devam eder. Oyundan çıkış, süreç değişimi veya WestPlay kapanışı okuyucuyu durdurur.
 
-Telefon/tablet için Controls → Telefon bağlantısı → Tarayıcı seçeneğinden sunucuyu açın. Aynı yerel ağda gösterilen adresi açın ve kodu girin. Panelleri gizle düğmesi görüntüyü genişletir. Donanım video kodlayıcısı ve WebRTC H.264 destekli tarayıcı gerekir.
+Telefon/tablet için Controls → Telefon bağlantısı → Tarayıcı seçeneğinden sunucuyu açın. Aynı yerel ağda PC’deki QR kodunu okutun; tarayıcı eşleşip ekranı otomatik açar. QR ile kod girilmez. Adresi elle yazarsanız yedek kod kullanılabilir. Panelleri gizle düğmesi görüntüyü genişletir. Donanım video kodlayıcısı ve WebRTC H.264 destekli tarayıcı gerekir.
 
 ## Konvoy isimleri ve kapsam
 

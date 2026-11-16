@@ -1,5 +1,8 @@
+import { consumeInvitation } from "./pairing.js";
 import { createDashboard } from "./dashboard.js";
 import { containedPoint, localOffer, scrollDelta } from "./geometry.js";
+const qrInvitation = consumeInvitation(window.location, window.history);
+let activeInvitation = qrInvitation;
 const $ = (id) => document.getElementById(id);
 let pc = null,
   channel = null,
@@ -10,6 +13,17 @@ let pc = null,
   moving = false,
   pingAt = 0,
   lastPong = 0;
+const tokenKey = "westplay.remoteToken";
+function rememberToken() {
+  try {
+    if (token) sessionStorage.setItem(tokenKey, token);
+    else sessionStorage.removeItem(tokenKey);
+  } catch {}
+}
+try {
+  const saved = sessionStorage.getItem(tokenKey);
+  if (/^[a-f0-9]{64}$/.test(saved ?? "")) token = saved;
+} catch {}
 let fitMode = "fill";
 try {
   if (localStorage.getItem("westplay.videoFit") === "contain")
@@ -207,23 +221,43 @@ async function connect() {
     throw error;
   }
 }
-$("pair-form").onsubmit = async (event) => {
-  event.preventDefault();
+async function pairAndConnect(credential, fromQr = false) {
+  $("pair-form").hidden = fromQr;
+  $("pair-help").textContent = fromQr
+    ? "QR ile bağlanılıyor…"
+    : "PC’de görünen eşleşme kodunu gir.";
   $("connect").disabled = true;
   $("error").textContent = "";
   try {
-    if (!token)
-      ({ token } = await request("/pair", { code: $("code").value.trim() }));
+    if (!token) ({ token } = await request("/pair", { code: credential }));
+    rememberToken();
     await connect();
   } catch (e) {
     close();
-    if (e.status === 401) token = null;
+    if (e.status === 401) {
+      token = null;
+      activeInvitation = null;
+      rememberToken();
+    }
     $("error").textContent = e.message;
+    $("pair-form").hidden = false;
+    $("pair-help").textContent =
+      "QR bağlantısı tamamlanamadı. Yeniden dene veya PC’deki QR kodunu tekrar okut.";
   } finally {
     $("connect").disabled = false;
     $("code").readOnly = !!token;
-    $("connect").textContent = token ? "Tekrar bağlan" : "Bağlan ↗";
+    $("code").required = !token && !activeInvitation;
+    $("connect").textContent = token
+      ? "Tekrar bağlan"
+      : activeInvitation
+        ? "Yeniden dene ↗"
+        : "Bağlan ↗";
   }
+}
+$("pair-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const code = $("code").value.trim();
+  await pairAndConnect(code || activeInvitation, !code && !!activeInvitation);
 };
 $("reconnect").onclick = async () => {
   try {
@@ -236,13 +270,19 @@ $("reconnect").onclick = async () => {
 $("disconnect").onclick = () => {
   close();
   token = null;
+  activeInvitation = null;
+  rememberToken();
+  $("code").required = true;
   $("code").readOnly = false;
   $("code").value = "";
   $("connect").textContent = "Bağlan ↗";
   $("pairing").hidden = false;
+  $("pair-form").hidden = false;
+  $("pair-help").textContent =
+    "Yeniden bağlanmak için PC’deki QR kodunu tekrar okut.";
   $("display").hidden = true;
   document.body.classList.remove("viewing");
-  $("error").textContent = "Yeni eşleşme için PC’de mobil ekranı kapatıp aç.";
+  $("error").textContent = "";
 };
 $("video").onloadeddata = () => {
   $("waiting").hidden = true;
@@ -359,3 +399,20 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", close);
 window.addEventListener("blur", cancel);
+
+function connectWithQr(invitation) {
+  activeInvitation = invitation;
+  // A fresh QR takes precedence over credentials cached for a previous server.
+  token = null;
+  rememberToken();
+  void pairAndConnect(invitation, true);
+}
+window.addEventListener("hashchange", () => {
+  const invitation = consumeInvitation(window.location, window.history);
+  if (invitation) connectWithQr(invitation);
+});
+if (qrInvitation) {
+  connectWithQr(qrInvitation);
+} else if (token) {
+  void pairAndConnect("", true);
+}

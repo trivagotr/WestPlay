@@ -144,13 +144,15 @@ impl RemoteControl {
         };
         let state = &runner.state;
         let url = format!("http://{}/", state.host);
-        let qr_svg = qrcode::QrCode::new(url.as_bytes())
+        let pairing = state.pairing.lock().unwrap();
+        let qr_url = pairing.invitation_url(&url);
+        let qr_svg = qrcode::QrCode::new(qr_url.as_bytes())
             .ok()
             .map(|q| q.render::<qrcode::render::svg::Color>().min_dimensions(200, 200).build());
         RemoteStatus {
             enabled: !state.stop.load(Ordering::Acquire),
             url: Some(url),
-            code: Some(state.pairing.lock().unwrap().code().to_owned()),
+            code: Some(pairing.code().to_owned()),
             qr_svg,
             connected: state.connected.load(Ordering::Acquire),
             encoder: Some(state.encoder.clone()),
