@@ -82,6 +82,43 @@ pub async fn answer(state: Arc<Run>, offer: RTCSessionDescription) -> Result<RTC
     pc.on_data_channel(Box::new(move |channel| {
         let s = s.clone();
         Box::pin(async move {
+            if channel.label() == "signals" {
+                let weak = Arc::downgrade(&channel);
+                channel.on_message(Box::new(move |message: DataChannelMessage| {
+                    let s = s.clone();
+                    let channel = weak.clone();
+                    Box::pin(async move {
+                        if !message.is_string
+                            || message.data.len() > 256
+                            || s.stop.load(Ordering::Acquire)
+                            || !s.connected.load(Ordering::Acquire)
+                        {
+                            return;
+                        }
+                        let Ok(probe) = serde_json::from_slice::<serde_json::Value>(&message.data) else {
+                            return;
+                        };
+                        let Some(sent_at) = probe.get("sentAt").and_then(serde_json::Value::as_f64) else {
+                            return;
+                        };
+                        if probe.get("type").and_then(serde_json::Value::as_str) != Some("vehicleSignals") {
+                            return;
+                        }
+                        // Copy the single latest snapshot before awaiting network work.
+                        let packet = s
+                            .signals
+                            .try_lock()
+                            .ok()
+                            .map(|signals| signals.packet(sent_at, Instant::now()).to_string());
+                        if let (Some(packet), Some(channel)) = (packet, channel.upgrade())
+                            && channel.buffered_amount().await == 0
+                        {
+                            let _ = channel.send_text(packet).await;
+                        }
+                    })
+                }));
+                return;
+            }
             if channel.label() != "control" {
                 let _ = channel.close().await;
                 return;

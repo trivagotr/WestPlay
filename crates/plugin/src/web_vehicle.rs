@@ -33,7 +33,7 @@ pub unsafe fn register(params: &TelemetryInitParamsV100) {
         for (index, name) in CHANNELS.iter().enumerate() {
             let name = CString::new(*name).unwrap();
             let kind = if index < 5 { SCS_VALUE_TYPE_FLOAT } else { SCS_VALUE_TYPE_BOOL };
-            let result = register(name.as_ptr(), SCS_U32_NIL, kind, 0, on_channel, index as *mut c_void);
+            let result = register(name.as_ptr(), SCS_U32_NIL, kind, 2, on_channel, index as *mut c_void);
             crate::log!(
                 "web telemetry: {} registration {}",
                 name.to_string_lossy(),

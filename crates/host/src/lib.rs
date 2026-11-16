@@ -11,6 +11,7 @@ pub mod browser;
 mod camera;
 mod capture;
 mod coach;
+mod dashboard;
 mod cursor;
 pub mod customize;
 pub mod fitted;
@@ -473,6 +474,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     let mut game_liveness = Liveness::default();
     let mut web_sdk_liveness = Liveness::default();
     let mut coach_watch = coach::Watch::default();
+    let mut dashboard_watch = dashboard::Watch::default();
     let mut last_web_post = Instant::now();
     let mut last_convoy_post = Instant::now();
     while !stop.load(Ordering::Relaxed) {
@@ -1748,18 +1750,29 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
         if last_telemetry_post.elapsed() >= Duration::from_millis(50) {
             last_telemetry_post = Instant::now();
             let plugin = &bridge.bridge().plugin;
+            let sdk_alive = web_sdk_liveness.update(plugin.telemetry.revision() as u64, Instant::now());
+            let web_valid = game_running && bridge.matches() && sdk_alive;
+            let signals = web_valid.then(||plugin.telemetry.read()).flatten();
+            let signals_extra = bridge.bridge().web_vehicle.read().unwrap_or_default();
+            let left=signals.filter(|_|signals_extra.known(8)).map(|t|t.left_blinker);
+            let right=signals.filter(|_|signals_extra.known(9)).map(|t|t.right_blinker);
+            config.remote.publish_signals(left,right,signals.is_none_or(|t|t.paused));
+            if !web_valid { let _=dashboard_watch.read(0,Instant::now()); }
             if last_web_post.elapsed() >= Duration::from_millis(500) {
                 last_web_post = Instant::now();
                 if config.remote.wants_frames() {
                     // Web-only instruments: independent of the cabin page and video layout.
-                    let sdk_alive = web_sdk_liveness.update(plugin.telemetry.revision() as u64, Instant::now());
-                    let web_data = if game_running && bridge.matches() && sdk_alive {
+                    let web_data = if web_valid {
                         plugin.telemetry.read().zip(plugin.truck.read()).filter(|(_,truck)|!truck.id.as_str().is_empty()).map(|(t,truck)|{
                     let extra=bridge.bridge().web_vehicle.read().unwrap_or_default();
                     let coach_telemetry=coach_watch.read(plugin.pid.load(Ordering::Relaxed),Instant::now());
                     let warnings:[Option<bool>;7]=std::array::from_fn(|i|extra.warning(i));
                     let wear:[Option<f32>;5]=std::array::from_fn(|i|extra.wear(i));
-                    serde_json::json!({"name":truck.name.as_str(),"coach":speakers::is_coach(truck.id.as_str()),"paused":t.paused,"cruise":extra.known(0).then_some(t.cruise_control_speed>0.0),"parkingBrake":extra.known(5).then_some(t.parking_brake),"engine":extra.known(3).then_some(t.engine_enabled),"electric":extra.known(4).then_some(t.electric_enabled),"lowBeam":extra.known(6).then_some(t.low_beam),"highBeam":extra.known(7).then_some(t.high_beam),"leftBlinker":extra.known(8).then_some(t.left_blinker),"rightBlinker":extra.known(9).then_some(t.right_blinker),"fuel":extra.known(1).then_some(t.fuel),"fuelRange":extra.known(2).then_some(t.fuel_range),"wear":wear,"warnings":warnings,"laneAssist":null,"coachTelemetry":coach_telemetry})
+                    let sample=dashboard_watch.read(plugin.pid.load(Ordering::Relaxed),Instant::now());
+                    let fields=dashboard::fields(sample,wear,speakers::is_coach(truck.id.as_str()));
+                    let mut data=serde_json::json!({"name":truck.name.as_str(),"coach":speakers::is_coach(truck.id.as_str()),"paused":t.paused,"cruise":extra.known(0).then_some(t.cruise_control_speed>0.0),"parkingBrake":extra.known(5).then_some(t.parking_brake),"engine":extra.known(3).then_some(t.engine_enabled),"electric":extra.known(4).then_some(t.electric_enabled),"lowBeam":extra.known(6).then_some(t.low_beam),"highBeam":extra.known(7).then_some(t.high_beam),"leftBlinker":extra.known(8).then_some(t.left_blinker),"rightBlinker":extra.known(9).then_some(t.right_blinker),"fuel":extra.known(1).then_some(t.fuel),"fuelRange":extra.known(2).then_some(t.fuel_range),"wear":wear,"warnings":warnings,"laneAssist":null,"coachTelemetry":coach_telemetry});
+                    if let (Some(data),Some(fields))=(data.as_object_mut(),fields.as_object()) {data.extend(fields.clone());}
+                    data
                 })
                     } else {
                         None

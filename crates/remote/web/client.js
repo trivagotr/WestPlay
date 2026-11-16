@@ -1,3 +1,5 @@
+import { createVehicleSignals } from "./signals.js";
+import { applyIndicator } from "./instruments.js";
 import { consumeInvitation } from "./pairing.js";
 import { createDashboard } from "./dashboard.js";
 import { containedPoint, localOffer, scrollDelta } from "./geometry.js";
@@ -71,8 +73,20 @@ function cancel() {
   pointer = null;
   send({ type: "cancel" });
 }
+let signalsChannel = null, signalsTimer = null;
+const vehicleSignals = createVehicleSignals((left, right) => {
+  for (const [key, value, label] of [["leftBlinker", left, "Sol sinyal"], ["rightBlinker", right, "Sağ sinyal"]]) {
+    for (const element of document.querySelectorAll(`[data-indicator="${key}"]`))
+      applyIndicator(element, key, value, label);
+  }
+});
 const dashboard = createDashboard({ request, getToken: () => token });
 function close() {
+  clearInterval(signalsTimer);
+  signalsTimer = null;
+  signalsChannel?.close();
+  signalsChannel = null;
+  vehicleSignals.reset();
   dashboard.stop();
   clearInterval(heartbeat);
   heartbeat = null;
@@ -120,6 +134,28 @@ async function connect() {
   pc = connection;
   try {
     connection.addTransceiver("video", { direction: "recvonly" });
+    signalsChannel = connection.createDataChannel("signals", { ordered: false, maxRetransmits: 0 });
+    const lamps = signalsChannel;
+    lamps.onopen = () => {
+      if (pc !== connection) return;
+      signalsTimer = setInterval(() => {
+        if (pc !== connection) return;
+        const now = performance.now();
+        vehicleSignals.expire(now);
+        if (lamps.readyState === "open" && lamps.bufferedAmount === 0)
+          lamps.send(JSON.stringify({ type: "vehicleSignals", sentAt: now }));
+      }, 50);
+    };
+    lamps.onmessage = (event) => {
+      if (pc !== connection) return;
+      try { vehicleSignals.accept(JSON.parse(event.data), performance.now()); } catch {}
+    };
+    lamps.onclose = () => {
+      if (pc !== connection) return;
+      clearInterval(signalsTimer);
+      signalsTimer = null;
+      vehicleSignals.reset();
+    };
     channel = connection.createDataChannel("control", { ordered: true });
     channel.onopen = () => {
       if (pc !== connection) return;
@@ -144,7 +180,7 @@ async function connect() {
     };
     channel.onclose = () => {
       if (pc === connection) {
-        cancel();
+        close();
         status("Kontrol bağlantısı kapandı");
       }
     };
@@ -394,6 +430,9 @@ $("full").onclick = async () => {
     );
   }
 };
+document.addEventListener("fullscreenchange", () => {
+  $("display").classList.toggle("is-fullscreen", document.fullscreenElement === $("display"));
+});
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) close();
 });

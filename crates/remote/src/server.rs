@@ -30,6 +30,7 @@ pub(crate) async fn serve(state: Arc<Run>, listener: std::net::TcpListener) {
             "/geometry.js",
             get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/geometry.js")) }),
         )
+        .route("/signals.js", get(|| async { asset("text/javascript; charset=utf-8", include_str!("../web/signals.js")) }))
         .route("/style.css", get(|| async { asset("text/css; charset=utf-8", include_str!("../web/style.css")) }))
         .route(
             "/instruments.js",

@@ -144,6 +144,8 @@ pub unsafe fn register(params: &TelemetryInitParamsV100) {
     // `ChannelRegisterFn`); the callbacks are ours, of the signatures the SDK calls, and the channel names are
     // copied by the SDK as they're registered.
     unsafe {
+        // Initialize before registering configuration callbacks: SDK may deliver the initial job immediately.
+        crate::dashboard::register(params);
         let register_event: EventRegisterFn = std::mem::transmute(params.register_for_event);
         for event in [
             SCS_TELEMETRY_EVENT_FRAME_END,
@@ -165,7 +167,7 @@ pub unsafe fn register(params: &TelemetryInitParamsV100) {
             let Ok(c_name) = CString::new(name) else { continue };
             // The SDK copies the name during registration.
             let result =
-                register_channel(c_name.as_ptr(), SCS_U32_NIL, value_type, 0, on_channel, index as *mut c_void);
+                register_channel(c_name.as_ptr(), SCS_U32_NIL, value_type, 2, on_channel, index as *mut c_void);
             if result == SCS_RESULT_OK {
                 registered += 1;
             } else {
@@ -241,6 +243,7 @@ unsafe fn on_game_event(event: u32, info: *const c_void) {
                     bridge.plugin.telemetry.write(&published);
                     crate::web_vehicle::publish();
                     crate::coach::publish();
+                    crate::dashboard::publish();
                 }
                 let (speed, paused) = (snapshot.speed, snapshot.paused);
                 drop(snapshot);
@@ -260,6 +263,10 @@ unsafe fn on_game_event(event: u32, info: *const c_void) {
 /// # Safety
 /// `configuration` is the game's, alive through the call (an event's `info`).
 unsafe fn on_configuration(configuration: &ConfigurationEvent) {
+    // SAFETY: forwarded unchanged during the live SDK callback.
+    unsafe {
+        crate::dashboard::configuration(configuration);
+    }
     // SAFETY: the SDK's strings, nul-terminated and alive through the call; checked for none first.
     unsafe {
         if configuration.id.is_null() {
@@ -395,6 +402,13 @@ unsafe fn on_channel_value(value: *const ScsValue, context: *mut c_void) {
     unsafe {
         let Some(&(_, _, field)) = CHANNELS.get(context as usize) else { return };
         let mut s = SNAPSHOT.lock().unwrap_or_else(|e| e.into_inner());
+        // Forward existing registrations rather than registering the same SDK channel twice.
+        match field {
+            Field::GameTime => crate::dashboard::update_number(2, value.as_ref().map(|v| v.u32() as f64)),
+            Field::Speed => crate::dashboard::update_number(3, value.as_ref().map(|v| v.float() as f64)),
+            Field::CruiseControl => crate::dashboard::update_number(4, value.as_ref().map(|v| v.float() as f64)),
+            _ => {}
+        }
         let web_index = match field {
             Field::CruiseControl => Some(0),
             Field::Fuel => Some(1),

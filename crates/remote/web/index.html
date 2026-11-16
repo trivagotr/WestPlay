@@ -75,6 +75,7 @@
               >
                 <span class="telltale-symbol" data-symbol="cruise"></span
                 ><span class="telltale-label">Cruise control</span
+                ><span class="telltale-value" id="cruise-value"></span
                 ><span class="sr-only" id="state-cruise">Veri yok</span>
               </div>
               <div
@@ -176,7 +177,8 @@
             </div>
             <div class="fuel-grid">
               <div>
-                <span class="fuel-caption"><i data-symbol="fuel"></i>YAKIT</span
+                <span class="fuel-caption"
+                  ><i data-symbol="fuel"></i>TÜKETİM</span
                 ><strong id="fuel-value">—</strong>
               </div>
               <div>
@@ -185,48 +187,26 @@
                 ><strong id="range-value">—</strong>
               </div>
             </div>
-            <h3>Bileşen hasarı</h3>
-            <div class="wear-list">
-              <div>
-                <div class="wear-label">
-                  <span class="wear-name"
-                    ><i data-symbol="engine"></i>Motor</span
-                  ><strong id="wear-0">—</strong>
-                </div>
-                <div class="wear-track"><i id="wear-bar-0"></i></div>
+            <section
+              class="damage-card"
+              title="Araç bileşenlerinin ortalama hasarı"
+            >
+              <div class="damage-heading">
+                <span data-symbol="body"></span>
+                <h3>Toplam hasar</h3>
               </div>
-              <div>
-                <div class="wear-label">
-                  <span class="wear-name"
-                    ><i data-symbol="transmission"></i>Şanzıman</span
-                  ><strong id="wear-1">—</strong>
-                </div>
-                <div class="wear-track"><i id="wear-bar-1"></i></div>
+              <strong id="damage-value">—</strong>
+              <div
+                id="damage-meter"
+                class="damage-meter"
+                role="meter"
+                aria-label="Toplam araç hasarı"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <i id="damage-bar"></i>
               </div>
-              <div>
-                <div class="wear-label">
-                  <span class="wear-name"><i data-symbol="body"></i>Gövde</span
-                  ><strong id="wear-2">—</strong>
-                </div>
-                <div class="wear-track"><i id="wear-bar-2"></i></div>
-              </div>
-              <div>
-                <div class="wear-label">
-                  <span class="wear-name"
-                    ><i data-symbol="chassis"></i>Şasi</span
-                  ><strong id="wear-3">—</strong>
-                </div>
-                <div class="wear-track"><i id="wear-bar-3"></i></div>
-              </div>
-              <div>
-                <div class="wear-label">
-                  <span class="wear-name"
-                    ><i data-symbol="wheels"></i>Tekerlek</span
-                  ><strong id="wear-4">—</strong>
-                </div>
-                <div class="wear-track"><i id="wear-bar-4"></i></div>
-              </div>
-            </div>
+            </section>
             <h3>Uyarılar</h3>
             <ul id="warning-list" class="warning-list warning-cluster">
               <li class="quiet">Veri bekleniyor</li>
@@ -251,51 +231,55 @@
             </div>
           </section>
           <aside
-            class="instrument-panel convoy-panel"
-            aria-label="Konvoy ve yolcular"
+            class="instrument-panel trip-panel"
+            aria-label="Sefer bilgileri"
           >
             <div class="panel-heading">
               <span class="panel-index">02</span>
-              <h2>Konvoy</h2>
-              <span class="tag">DENEYSEL</span>
+              <h2 id="trip-title">Yolculuk</h2>
             </div>
-            <p class="convoy-map-note">
-              Oyuncular isimleriyle GPS üzerinde gösterilir.
-            </p>
-            <div class="convoy-summary">
-              <strong id="friend-count">0 araç</strong
-              ><span id="sample-count">Henüz ölçüm yok</span>
-            </div>
-            <p id="convoy-state" role="status">Otomatik bağlantı bekleniyor</p>
-            <ul id="friend-list" class="friend-list"></ul>
-            <p class="panel-note">
-              Oyun bağlantısıyla otomatik başlar. Yalnızca okunabilen yakın
-              oyuncular gösterilir; tüm Konvoy listesi henüz doğrulanmadı.
-              Güncelliğini yitiren konumlar kaldırılır.
-            </p>
-            <div class="coach-card">
-              <div class="panel-heading">
-                <span class="coach-symbol" data-symbol="passengers"></span>
-                <h2>Yolcular</h2>
-                <span class="coach-source" id="coach-source"></span>
+            <section id="trip-quality" class="trip-quality" data-kind="coach">
+              <p id="trip-quality-caption" class="trip-eyebrow">
+                ORTALAMA MEMNUNİYET
+              </p>
+              <div class="trip-quality-row">
+                <strong id="trip-quality-value">—</strong>
+                <div id="trip-passengers" class="trip-passengers">
+                  <i data-symbol="passengers"></i
+                  ><strong id="trip-passenger-count">—</strong
+                  ><span>Yolcu</span>
+                </div>
               </div>
-              <p class="coach-caption">ORTALAMA MEMNUNİYET</p>
-              <div id="coach-value" class="coach-value">—</div>
               <div
-                id="coach-meter"
-                class="coach-meter"
+                id="trip-quality-meter"
+                class="trip-quality-meter"
                 role="meter"
-                aria-label="Ortalama yolcu memnuniyeti"
+                aria-label="Ortalama memnuniyet"
                 aria-valuemin="0"
                 aria-valuemax="100"
               >
-                <i id="coach-bar"></i>
+                <i id="trip-quality-bar"></i>
               </div>
-              <p id="coach-status" role="status">Yolcu bağlantısı bekleniyor</p>
+            </section>
+            <dl class="trip-details">
+              <div>
+                <dt>Sıradaki hedef</dt>
+                <dd id="trip-destination">—</dd>
+              </div>
+              <div>
+                <dt id="trip-schedule-caption">Planlanan varış</dt>
+                <dd id="trip-schedule">—</dd>
+              </div>
+            </dl>
+            <div id="trip-delay-row" class="trip-delay">
+              <span>Gecikme</span><strong id="trip-delay">—</strong>
             </div>
+            <p id="trip-status" class="trip-status" role="status">
+              Sefer verisi bekleniyor
+            </p>
           </aside>
         </div>
-        <nav aria-label="Ekran araçları">
+        <nav class="toolbar" aria-label="Ekran araçları">
           <button id="focus-mode" type="button" aria-pressed="false">
             Bilgileri gizle</button
           ><button id="diagnostics" type="button">Log indir ↓</button>

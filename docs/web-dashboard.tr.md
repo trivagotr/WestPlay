@@ -1,6 +1,6 @@
 # WestPlay: web ikinci ekran ve otomatik Konvoy GPS
 
-16 Kasım 2026. Konvoy işaretleri artık doğrudan yerel GPS haritasının bir parçasıdır: oyun tabletinde görünür ve aynı görüntü web yayınına yansır. Ayrı radar veya video üstüne çizilen SVG yoktur. APK değiştirilmedi. SDK köprüsü 29 olarak kaldı; pakette daha önce doğrulanmış Coaches eklentisi korundu, bu GPS değişikliği için yeni oyun DLL'si kurulmaz.
+16 Kasım 2026. Konvoy işaretleri artık doğrudan yerel GPS haritasının bir parçasıdır: oyun tabletinde görünür ve aynı görüntü web yayınına yansır. Ayrı radar veya video üstüne çizilen SVG yoktur. APK değiştirilmedi. SDK köprüsü 29 olarak kaldı; tüketim ve yük/sefer kanalları için bağımsız DashboardTelemetry eşlemesi ve güncel oyun DLL’si gerekir. Oyun çalışırken eklenti değiştirilmez; uygulamanın güncelleme akışını oyun kapalıyken tamamlayın.
 
 ## Başlatma
 
@@ -29,3 +29,15 @@ Sonraki testte aynı Konvoyda önce yan yana durun, sonra bir oyuncu ilerlesin; 
 ## Çevrimdışı doğrulama
 
 Okuyucunun kendi belleğinde isim eşleme, UTF8/sınırlar, çift kayıt ve değişen oturum kontrolleri; Rust veri/yaşam döngüsü testleri; UI testleri; gerçek MapLibre ile dönüş, eğim, yakınlaştırma, güvenli isim metni ve bayat veri temizliği denendi. Gerçek Konvoy kabul testi henüz yapılmadı. Genel workspace'in bilinen places::tests::names_a_folder_as_windows_does Windows harf farkı sorunu bu değişikliğin dışında kalır.
+
+## Yeni sürüş / sefer paneli
+
+Bileşen listesi yerine tek araç hasarı, yakıt litresi yerine ortalama tüketim(L/100km), menzil ve cruise sabit hızı gösterilir. Araç hasarı, beş geçerli SDK bileşeninin ortalamasıdır; ayrı bir oyuniçi toplam hasar kanalı bulunmadığı için F7 ile birebir aynı ağırlıklandırma iddia edilmez. Tırda memnuniyet alanı yük hasarına dönüşür. Yük işi yapılandırması hedef şehri ve teslim sonunu verir; gecikme oyun saati ile bu son zamanın farkıdır.
+
+Sinyaller 500ms panel sorgusundan ayrıldı. Ayrı sırasız/tekrarsız WebRTC kanalı yaklaşık50ms aralıkla gerçek SDK lamba fazını taşır; yerel CSS yanıp sönmesi yoktur. Kaynak+taşıma yaşı750ms sınırını geçince işaretler temizlenir. Oyun durakladığında faz oynatılmaz.
+
+Şerit simgesi65km/sa altında önceki sönük/bilinmeyen halindedir; eşik uygunken beyazdır. Gerçek aktif sinyal gelirse yeşil olur. Desteklenen SDK’da aktif şerit kanalı doğrulanmadığından bu sürüm etkinliği varsaymaz.
+
+Sağdaki Konvoy listesi kaldırıldı; otomatik GPS işaretleri devam eder. Sağ sefer panelinde kalite(memnuniyet/yük hasarı), yolcu sayısı, hedef, planlanan varış veya teslim sonu ve gecikme alanları bulunur. Coaches’ta sayı/hedef/saat/gecikme özellikleri henüz belgelenmemiş ve doğrulanmamıştır; bu alanlar kaynak yokken çizgi kalır. bus_job yapılandırması özellik ad/tiplerini sınırlı yerel eklenti loguna yazar; şehir/kişi değerleri loga alınmaz. Aktif otobüs seferindeki canlı yapılandırma örneği bu alanların devamı için gereklidir.
+
+Tam ekranda alt araç çubuğu ve klavye formu gizlenir. Escape veya cihazın tam ekran çıkış hareketiyle geri dönülebilir. APK ve oyun içi panelin düzeni değiştirilmez.

@@ -39,7 +39,25 @@ pub fn interfaces() -> Vec<Interface> {
     result
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct VehicleSignals {
+    left: Option<bool>,
+    right: Option<bool>,
+    paused: bool,
+    updated: Instant,
+}
+impl VehicleSignals {
+    pub(crate) fn packet(&self, sent_at: f64, now: Instant) -> serde_json::Value {
+        let age = now.saturating_duration_since(self.updated);
+        let fresh = !self.paused && age < Duration::from_millis(750);
+        serde_json::json!({"type":"vehicleSignals", "sentAt":sent_at,
+            "ageMs": if fresh { age.as_millis() as u64 } else { 0 },
+            "left": if fresh { self.left } else { None },
+            "right": if fresh { self.right } else { None }})
+    }
+}
 pub(crate) struct Run {
+    pub signals: Mutex<VehicleSignals>,
     pub dashboard: Mutex<crate::dashboard::Dashboard>,
     pub observer: Arc<crate::convoy::Observer>,
     pub host: String,
@@ -59,6 +77,7 @@ pub(crate) struct Run {
 impl Run {
     pub(crate) fn new(host: String, bind: Ipv4Addr, encoder: String) -> Self {
         Self {
+            signals: Mutex::new(VehicleSignals { left: None, right: None, paused: true, updated: Instant::now() }),
             dashboard: Mutex::new(crate::dashboard::Dashboard::default()),
             observer: Arc::new(crate::convoy::Observer::default()),
             host,
@@ -187,6 +206,15 @@ impl RemoteControl {
             data.publish(pid, vehicle, Instant::now());
         }
     }
+    /// Latest lamp sample; never blocks the host frame thread or queues history.
+    pub fn publish_signals(&self, left: Option<bool>, right: Option<bool>, paused: bool) {
+        if let Ok(slot) = self.runner.try_lock()
+            && let Some(r) = slot.as_ref()
+            && let Ok(mut signals) = r.state.signals.try_lock()
+        {
+            *signals = VehicleSignals { left, right, paused, updated: Instant::now() };
+        }
+    }
     /// Host tick, independent of remote-server enablement and browser connections.
     pub fn update_convoy_pid(&self, pid: Option<u32>) {
         self.convoy.update_pid(pid);
@@ -232,5 +260,21 @@ mod convoy_lifetime_tests {
         remote.configure(None).unwrap();
         assert!(state.observer.is_current(generation));
         assert_eq!(remote.convoy_snapshot()["players"].as_array().unwrap().len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod signal_tests {
+    use super::*;
+    #[test]
+    fn exact_lamp_sample_expires_and_pause_clears_it() {
+        let now = Instant::now();
+        let mut signals = VehicleSignals { left: Some(true), right: Some(false), paused: false, updated: now };
+        assert_eq!(signals.packet(42.0, now)["left"], true);
+        assert_eq!(signals.packet(42.0, now)["right"], false);
+        assert!(signals.packet(43.0, now + Duration::from_millis(750))["left"].is_null());
+        signals.paused = true;
+        assert!(signals.packet(44.0, now)["left"].is_null());
+        assert_eq!(signals.packet(44.0, now)["sentAt"], 44.0);
     }
 }

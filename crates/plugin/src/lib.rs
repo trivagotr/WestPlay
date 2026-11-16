@@ -7,6 +7,7 @@
 mod bridge;
 mod camera;
 mod coach;
+mod dashboard;
 mod d3d;
 mod frame;
 mod hooks;

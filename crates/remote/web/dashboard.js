@@ -3,6 +3,7 @@ import {
   applyIndicator,
   mountSymbols,
   passengerView,
+  applyLaneIndicator,
 } from "./instruments.js";
 const finite = (value, min = 0, max = Infinity) =>
   typeof value === "number" &&
@@ -34,7 +35,35 @@ export function vehicleView(snapshot = {}) {
     highBeam: flag(v.highBeam),
     leftBlinker: flag(v.leftBlinker),
     rightBlinker: flag(v.rightBlinker),
-    fuel: finite(v.fuel, 0, 10000),
+    speedKph: finite(v.speedKph, 0, 1000),
+    cruiseSpeedKph: finite(v.cruiseSpeedKph, 0, 300),
+    fuelConsumption: finite(v.fuelConsumption, 0, 1000),
+    totalDamage:
+      finite(v.totalDamage, 0, 1) === null ? null : v.totalDamage * 100,
+    cargoDamage:
+      finite(v.cargoDamage, 0, 1) === null ? null : v.cargoDamage * 100,
+    job: {
+      active: flag(v.job?.active),
+      destination:
+        typeof v.job?.destination === "string"
+          ? v.job.destination
+              .replace(
+                /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu,
+                "",
+              )
+              .slice(0, 120)
+          : "",
+      scheduledArrivalMinutes: finite(
+        v.job?.scheduledArrivalMinutes,
+        0,
+        4294967295,
+      ),
+      gameTimeMinutes: finite(v.job?.gameTimeMinutes, 0, 4294967295),
+      delayMinutes: finite(v.job?.delayMinutes, -10000000, 10000000),
+      passengerCount: Number.isInteger(v.job?.passengerCount)
+        ? finite(v.job.passengerCount, 0, 1000)
+        : null,
+    },
     fuelRange: finite(v.fuelRange, 0, 100000),
     wear: Array.from({ length: 5 }, (_, i) => {
       const n = finite(v.wear?.[i], 0, 1);
@@ -76,36 +105,56 @@ export class DiagnosticLog {
     return this.rows.slice();
   }
 }
-const statusText = {
-  starting: "Otomatik bağlantı hazırlanıyor",
-  "waiting-game": "Oyun bağlantısı bekleniyor",
-  retrying: "Otomatik bağlantı yeniden deneniyor",
-  unsupported: "Oyun sürümü bu okuyucuyla uyumlu değil",
-  "reader-refused": "Otomatik okuyucu bağlantısı kurulamadı",
-  "reader-invalid-output": "Okuyucu verisi doğrulanamadı",
-  truckersmp: "TruckersMP oyuncuları GPS üzerinde",
-  observing: "Yakın araçlar izleniyor",
-  "sample-unavailable": "Konum doğrulanamadı",
-  "ownership-changed": "Kendi aracımızın eşleşmesi değişti",
-  stopped: "Oyun bağlantısı bekleniyor",
-  finished: "Otomatik bağlantı yeniden deneniyor",
-  "reader-missing": "Konvoy okuyucusu pakette bulunamadı",
-  "reader-start-failed": "Okuyucu başlatılamadı",
-  "build-mismatch": "Oyun sürümü bu okuyucuyla uyumlu değil",
-  "image-fingerprint": "Oyun dosyası desteklenmiyor",
-};
-export function convoyView(convoy = {}) {
-  const players = convoy.fresh === true && Array.isArray(convoy.players)
-    ? convoy.players.slice(0, 128).filter(point => point && finite(point.distance, 0, 34000000) !== null).map(point => {
-        const name = typeof point.name === "string"
-          ? Array.from(point.name.replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "").trim()).slice(0, 80).join("")
-          : "";
-        return {name: name || "İsim bekleniyor", distance:point.distance};
-      })
-    : [];
+export function gameClock(minutes) {
+  if (finite(minutes, 0, 4294967295) === null) return "—";
+  const whole = Math.floor(minutes);
+  return (
+    ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"][
+      Math.floor(whole / 1440) % 7
+    ] +
+    " " +
+    String(Math.floor((whole % 1440) / 60)).padStart(2, "0") +
+    ":" +
+    String(whole % 60).padStart(2, "0")
+  );
+}
+export function delayLabel(minutes) {
+  if (finite(minutes, -10000000, 10000000) === null) return "—";
+  if (minutes <= 0) return "Zamanında";
+  const m = Math.floor(minutes);
+  return (
+    "+" + (m >= 60 ? Math.floor(m / 60) + " sa. " : "") + (m % 60) + " dk."
+  );
+}
+export function journeyView(v) {
+  const passenger = passengerView(v);
+  const cargo = v.coach === false;
   return {
-    players,
-    status: statusText[convoy.status] || (convoy.status ? "Konum verisi alınamıyor" : "Otomatik bağlantı bekleniyor"),
+    quality: {
+      label: cargo ? "YÜK HASARI" : "ORTALAMA MEMNUNİYET",
+      percent: cargo
+        ? v.job.active === false
+          ? null
+          : v.cargoDamage
+        : v.job.active === false ? null : passenger.percent,
+      kind: cargo ? "cargo" : "coach",
+    },
+    status:
+      v.coach === null
+        ? "Araç bağlantısı bekleniyor"
+        : cargo
+          ? v.job.active === false
+            ? "Aktif yük işi bekleniyor"
+            : v.cargoDamage === null
+              ? "Yük verisi bekleniyor"
+              : "Yük telemetrisi canlı"
+          : {
+              live: "Yolcu telemetrisi canlı",
+              plugin: "Yolcu bağlantısı bekleniyor",
+              unsupported: "Yolcu kanalı desteklenmiyor",
+              waiting: "Aktif yolcu işi bekleniyor",
+              vehicle: "Araç bağlantısı bekleniyor",
+            }[passenger.state] || "Yolcu verisi bekleniyor",
   };
 }
 export function createDashboard({ request, getToken }) {
@@ -162,14 +211,11 @@ export function createDashboard({ request, getToken }) {
     $("data-state").dataset.live = String(connected);
     for (const key of [
       "cruise",
-      "laneAssist",
       "parkingBrake",
       "engine",
       "electric",
       "lowBeam",
       "highBeam",
-      "leftBlinker",
-      "rightBlinker",
     ])
       state(
         "state-" + key,
@@ -177,18 +223,51 @@ export function createDashboard({ request, getToken }) {
         key === "parkingBrake" ? "Çekili" : "Açık",
         key === "parkingBrake" ? "Serbest" : "Kapalı",
       );
-    put("fuel-value", v.fuel === null ? "—" : Math.round(v.fuel) + " L");
+    applyLaneIndicator(
+      $("state-laneAssist").closest("[data-indicator]"),
+      v.laneAssist,
+      v.speedKph,
+    );
+    put(
+      "state-laneAssist",
+      v.speedKph === null || v.speedKph < 65
+        ? "65 km/sa altında"
+        : v.laneAssist === true
+          ? "Etkin"
+          : "Hazır",
+    );
+    put(
+      "cruise-value",
+      v.cruise === true && v.cruiseSpeedKph !== null && v.cruiseSpeedKph > 0
+        ? Math.round(v.cruiseSpeedKph) + " km/sa"
+        : "",
+    );
+    put(
+      "fuel-value",
+      v.fuelConsumption === null
+        ? "—"
+        : v.fuelConsumption.toLocaleString("tr-TR", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          }) + " L/100 km",
+    );
     put(
       "range-value",
       v.fuelRange === null
         ? "—"
         : Math.round(v.fuelRange).toLocaleString("tr-TR") + " km",
     );
-    v.wear.forEach((value, i) => {
-      put("wear-" + i, value === null ? "—" : "%" + value.toFixed(1));
-      $("wear-bar-" + i).style.width = (value ?? 0) + "%";
-      $("wear-bar-" + i).dataset.alert = String(value !== null && value >= 10);
-    });
+    put(
+      "damage-value",
+      v.totalDamage === null ? "—" : "%" + v.totalDamage.toFixed(1),
+    );
+    $("damage-bar").style.width = (v.totalDamage ?? 0) + "%";
+    $("damage-meter").dataset.alert = String(
+      v.totalDamage !== null && v.totalDamage >= 10,
+    );
+    if (v.totalDamage !== null)
+      $("damage-meter").setAttribute("aria-valuenow", String(v.totalDamage));
+    else $("damage-meter").removeAttribute("aria-valuenow");
     const labels = [
       "Yakıt düşük",
       "AdBlue düşük",
@@ -239,49 +318,42 @@ export function createDashboard({ request, getToken }) {
             (knownWarnings < 7 ? " · bazı kanallar bekleniyor" : "")
           : "Uyarı verisi bekleniyor",
     );
-    const passenger = passengerView(v),
-      live = passenger.percent !== null;
-    const messages = {
-      vehicle: "Araç bağlantısı bekleniyor",
-      "not-coach": "Yolcu bilgisi otobüste gösterilir",
-      plugin: "Yolcu bağlantısı bekleniyor",
-      unsupported: "Bu oyun sürümünde yolcu kanalı yok",
-      waiting: "Aktif yolcu işi bekleniyor",
-      live: "Oyunun yolcu telemetrisinden",
-    };
-    put("coach-status", messages[passenger.state]);
-    put("coach-value", live ? "%" + Math.round(passenger.percent) : "—");
-    put("coach-source", live ? "CANLI" : "");
-    $("coach-bar").style.width = (passenger.percent ?? 0) + "%";
-    $("coach-meter").dataset.available = String(live);
-    if (live)
-      $("coach-meter").setAttribute("aria-valuenow", String(passenger.percent));
-    else $("coach-meter").removeAttribute("aria-valuenow");
-    const c = snapshot.connected === true ? snapshot.convoy || {} : {};
-    const convoy = convoyView(c);
-    const players = convoy.players;
-    put("friend-count", players.length + " araç");
-    put("convoy-state", convoy.status);
-    const rows = $("friend-list");
-    rows.replaceChildren();
-    players.forEach((point) => {
-      const li = document.createElement("li");
-      const label = document.createElement("span");
-      label.textContent = point.name;
-      const distance = document.createElement("strong");
-      distance.textContent =
-        point.distance >= 1000
-          ? (point.distance / 1000).toFixed(1) + " km"
-          : Math.round(point.distance) + " m";
-      li.append(label, distance);
-      rows.append(li);
-    });
+    const trip = journeyView(v),
+      quality = trip.quality;
+    put("trip-title", v.coach === false ? "Yük / teslimat" : "Yolculuk");
+    put("trip-quality-caption", quality.label);
     put(
-      "sample-count",
-      Number.isFinite(c.samples)
-        ? c.samples + " örnek · " + (c.gaps || 0) + " eksik/boş"
-        : "Henüz ölçüm yok",
+      "trip-quality-value",
+      quality.percent === null ? "—" : "%" + Math.round(quality.percent),
     );
+    $("trip-quality").dataset.kind = quality.kind;
+    $("trip-quality").dataset.alert = String(
+      quality.kind === "cargo" && quality.percent > 0,
+    );
+    $("trip-quality-bar").style.width = (quality.percent ?? 0) + "%";
+    if (quality.percent !== null)
+      $("trip-quality-meter").setAttribute(
+        "aria-valuenow",
+        String(quality.percent),
+      );
+    else $("trip-quality-meter").removeAttribute("aria-valuenow");
+    $("trip-quality-meter").setAttribute("aria-label", quality.label);
+    $("trip-passengers").hidden = v.coach !== true;
+    put(
+      "trip-passenger-count",
+      v.job.passengerCount === null
+        ? "—"
+        : v.job.passengerCount.toLocaleString("tr-TR"),
+    );
+    put("trip-destination", v.job.destination || "—");
+    put(
+      "trip-schedule-caption",
+      v.coach === false ? "Teslim sonu" : "Planlanan varış",
+    );
+    put("trip-schedule", gameClock(v.job.scheduledArrivalMinutes));
+    put("trip-delay", delayLabel(v.job.delayMinutes));
+    $("trip-delay-row").dataset.late = String(v.job.delayMinutes > 0);
+    put("trip-status", trip.status + (v.coach === true && (!v.job.destination || v.job.passengerCount === null || v.job.scheduledArrivalMinutes === null) ? " · Sefer ayrıntıları bekleniyor" : ""));
   }
   async function poll(epoch) {
     if (!active || epoch !== generation) return;
@@ -354,7 +426,7 @@ export function createDashboard({ request, getToken }) {
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) {
-      put("convoy-state", "Log indirilemedi; bağlantıyı kontrol et");
+      put("connection-error", "Log indirilemedi; bağlantıyı kontrol et");
       log.record("export-error", { httpStatus: error.status });
     } finally {
       button.disabled = false;

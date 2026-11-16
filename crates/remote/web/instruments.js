@@ -3,7 +3,7 @@ const paths = {
   cruise:
     '<path d="M3 18a9 9 0 1 1 18 0M6 10l2 1m4-5v3m6 1-2 1M12 15l4-4"/><path d="M7 20h10m-2-3 3 3-3 3"/>',
   laneAssist:
-    '<path d="M7 3 3 21M17 3l4 18M12 3v4m0 3v2"/><circle cx="12" cy="17" r="4"/><path d="M8 16h8m-4 1v4"/>',
+    '<path d="M5 2 1 22M19 2l4 20M8 12l1-5h6l1 5M7 12h10v7H7ZM8 19v2m8-2v2M9 15h1m4 0h1"/>',
   parkingBrake:
     '<circle cx="12" cy="12" r="7"/><path d="M3 5a12 12 0 0 0 0 14M21 5a12 12 0 0 1 0 14M10 16V8h3a2.5 2.5 0 0 1 0 5h-3"/>',
   engine: '<path d="M6 7h11v3h4v8h-4v2H6v-3H3v-7h3ZM9 4h6M12 4v3M1 11v5"/>',
@@ -74,6 +74,33 @@ export function applyIndicator(
     label + ": " + (view.state === "unknown" ? "Veri yok" : value ? on : off);
   element.setAttribute("aria-label", text);
   element.title = text;
+}
+export function laneView(active, speedKph) {
+  if (
+    typeof speedKph !== "number" ||
+    !Number.isFinite(speedKph) ||
+    speedKph < 65
+  )
+    return { state: "unknown", tone: "white" };
+  return active === true
+    ? { state: "on", tone: "green" }
+    : { state: "ready", tone: "white" };
+}
+export function applyLaneIndicator(element, active, speedKph) {
+  const view = laneView(active, speedKph);
+  element.dataset.state = view.state;
+  element.dataset.tone = view.tone;
+  const label =
+    "Şerit desteği: " +
+    (view.state === "unknown"
+      ? "65 km/sa altında veya hız verisi yok"
+      : view.state === "on"
+        ? "Etkin"
+        : active === null
+          ? "65 km/sa eşiği uygun; etkinlik verisi alınamıyor"
+          : "Hazır");
+  element.setAttribute("aria-label", label);
+  element.title = label;
 }
 export function passengerView(vehicle = {}) {
   if (vehicle.coach === false) return { state: "not-coach", percent: null };
