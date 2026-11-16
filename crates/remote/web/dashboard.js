@@ -1,3 +1,9 @@
+import {
+  icon,
+  applyIndicator,
+  mountSymbols,
+  passengerView,
+} from "./instruments.js";
 const finite = (value, min = 0, max = Infinity) =>
   typeof value === "number" &&
   Number.isFinite(value) &&
@@ -16,6 +22,11 @@ export function vehicleView(snapshot = {}) {
     coach: flag(v.coach),
     paused: flag(v.paused),
     cruise: flag(v.cruise),
+    laneAssist: flag(v.laneAssist),
+    coachTelemetry:
+      v.coachTelemetry && typeof v.coachTelemetry === "object"
+        ? v.coachTelemetry
+        : null,
     parkingBrake: flag(v.parkingBrake),
     engine: flag(v.engine),
     electric: flag(v.electric),
@@ -87,12 +98,23 @@ export function createDashboard({ request, getToken }) {
     lastAt = 0,
     lastSnapshot = {},
     observing = false;
+  mountSymbols(document);
   function put(id, value) {
     $(id).textContent = value;
   }
   function state(id, value, on = "Açık", off = "Kapalı") {
-    put(id, value === null ? "—" : value ? on : off);
-    $(id).dataset.state = value === null ? "unknown" : value ? "on" : "off";
+    put(id, value === null ? "Veri yok" : value ? on : off);
+    const element = $(id),
+      panel = element.closest("[data-indicator]");
+    if (panel)
+      applyIndicator(
+        panel,
+        panel.dataset.indicator,
+        value,
+        panel.dataset.label,
+        on,
+        off,
+      );
   }
   function render(snapshot = {}) {
     lastSnapshot = snapshot;
@@ -121,6 +143,7 @@ export function createDashboard({ request, getToken }) {
     $("data-state").dataset.live = String(connected);
     for (const key of [
       "cruise",
+      "laneAssist",
       "parkingBrake",
       "engine",
       "electric",
@@ -158,27 +181,63 @@ export function createDashboard({ request, getToken }) {
     ];
     const list = $("warning-list");
     list.replaceChildren();
-    let known = 0;
+    const warningIcons = [
+      "fuel",
+      "adblue",
+      "air",
+      "air",
+      "oil",
+      "temperature",
+      "battery",
+    ];
     v.warnings.forEach((value, i) => {
-      if (value !== null) known++;
-      if (value) {
-        const item = document.createElement("li");
-        item.textContent = labels[i];
-        list.append(item);
-      }
+      const li = document.createElement("li");
+      li.className = "telltale warning-telltale";
+      li.setAttribute("role", "img");
+      li.tabIndex = 0;
+      const glyph = document.createElement("span");
+      glyph.className = "telltale-symbol";
+      glyph.innerHTML = icon(warningIcons[i]);
+      li.append(glyph);
+      applyIndicator(
+        li,
+        i === 3 ? "airEmergency" : warningIcons[i],
+        value,
+        labels[i],
+        "Uyarı",
+        "Normal",
+      );
+      list.append(li);
     });
-    if (!list.childElementCount) {
-      const item = document.createElement("li");
-      item.className = "quiet";
-      item.textContent = known
-        ? "Etkin uyarı yok" + (known < 7 ? " · bazı kanallar alınamıyor" : "")
-        : "Uyarı verisi bekleniyor";
-      list.append(item);
-    }
+    const activeWarnings = v.warnings.filter((v) => v === true).length,
+      knownWarnings = v.warnings.filter((v) => v !== null).length;
     put(
-      "coach-status",
-      v.coach === false ? "Otobüste kullanılabilir" : "Yolcu verisi alınamıyor",
+      "warning-note",
+      activeWarnings
+        ? activeWarnings + " etkin uyarı"
+        : knownWarnings
+          ? "Etkin uyarı yok" +
+            (knownWarnings < 7 ? " · bazı kanallar bekleniyor" : "")
+          : "Uyarı verisi bekleniyor",
     );
+    const passenger = passengerView(v),
+      live = passenger.percent !== null;
+    const messages = {
+      vehicle: "Araç bağlantısı bekleniyor",
+      "not-coach": "Yolcu bilgisi otobüste gösterilir",
+      plugin: "Yolcu bağlantısı bekleniyor",
+      unsupported: "Bu oyun sürümünde yolcu kanalı yok",
+      waiting: "Aktif yolcu işi bekleniyor",
+      live: "Oyunun yolcu telemetrisinden",
+    };
+    put("coach-status", messages[passenger.state]);
+    put("coach-value", live ? "%" + Math.round(passenger.percent) : "—");
+    put("coach-source", live ? "CANLI" : "");
+    $("coach-bar").style.width = (passenger.percent ?? 0) + "%";
+    $("coach-meter").dataset.available = String(live);
+    if (live)
+      $("coach-meter").setAttribute("aria-valuenow", String(passenger.percent));
+    else $("coach-meter").removeAttribute("aria-valuenow");
     const c = snapshot.connected === true ? snapshot.convoy || {} : {};
     const players = c.fresh === true ? c.players || [] : [];
     put("friend-count", players.length + " araç");

@@ -12,7 +12,7 @@ Web araç verileri için güncellenmiş EXE ve eklenti birlikte gerekir: köprü
 
 Cruise control, el freni, motor/elektrik, far/sinyaller, yakıt ve menzil; motor, şanzıman, gövde, şasi ve tekerlek hasarı; düşük yakıt/AdBlue, fren havası, yağ basıncı, sıcaklık ve akü uyarıları gösterilir. Alanın SDK verisi yoksa çizgi görünür; kapalı veya yüzde sıfır varsayılmaz. Kaynak durursa paneller temizlenir. Hız, devir ve vites kartları yoktur. GPS’in mevcut hedef/varış/süre bilgileri kopyalanmadı.
 
-Resmi Coaches DLC hedefleniyor. Yayımlanan SDK 1.16 başlıklarında yolcu memnuniyeti, durak bazında gecikme ve şerit takip durumu için doğrulanmış kanal bulunamadı. Bu alanlar destekleniyormuş gibi gösterilmez; F3 ekranı okunmaz, ekran yakalama veya OCR yapılmaz. Hasar kanallarının Coaches üzerindeki davranışı kullanıcı testi bekliyor.
+Resmi Coaches DLC için oyunun bus_job.average_satisfaction SDK kanalı bağlandı. Geçerli değer gelince webde gerçek ortalama memnuniyet yüzdesi gösterilir; iş/veri yokken yüzde uydurulmaz. Bu kanal SDK 1.16 başlıklarında henüz listelenmiyor, kayıt sonucu çalışma anında denetlenir. Şerit takip durumu ve durak bazında gecikme için doğrulanmış kaynak henüz yok; şerit simgesi bu durumda soru işaretlidir. F3 ekranı okunmaz, ekran yakalama veya OCR yapılmaz. Ayrıntılar: docs/coaches-telemetry.tr.md.
 
 ## Konvoy testi
 
@@ -40,3 +40,5 @@ Geri bildirimde araç modeli, kamyon/otobüs, arkadaşla aynı Konvoyda olup olm
 ## GPS düzeltmesinin testi
 
 Ayrı radar bulunmuyor. Gerçek MapLibre motoruyla kaydırma/dönüş/eğim/yakınlaştırma ve video Doldur/Sığdır eşleşmesi doğrulandı; PC haritasının katman sayısı sabit kaldı. Tekrarlanan/eski yanıtlar işaretin ömrünü uzatmıyor. GPS bilgisi ayrı, sırasız ve 150 ms paket ömürlü WebRTC kanalından aktarılıyor; normal dokunma/klavye kanalı aynı kalıyor. Kayıp ekran konumları kısa sürede temizleniyor. 520 UI ve 8 web testi geçti; yeni host/remote testleri de geçti. Canlı oyun testi kullanıcıyı bekliyor.
+
+Gösterge kartları artık otomotiv sembolleri kullanır. Renkler gerçek sinyale bağlıdır: cruise/kısa far/sinyal yeşil, uzun far mavi, el freni kırmızı, kritik uyarılar kırmızı ve dikkat uyarıları amber. Sönük simgeler ve soru işareti, alınamayan durumu açık/kapalı diye sunmaz.

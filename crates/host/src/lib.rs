@@ -10,6 +10,7 @@ mod brightness;
 pub mod browser;
 mod camera;
 mod capture;
+mod coach;
 mod cursor;
 pub mod customize;
 pub mod fitted;
@@ -471,6 +472,7 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
     let mut gpu_changed = false;
     let mut game_liveness = Liveness::default();
     let mut web_sdk_liveness = Liveness::default();
+    let mut coach_watch = coach::Watch::default();
     let mut last_web_post = Instant::now();
     let mut last_map_projection = Instant::now();
     while !stop.load(Ordering::Relaxed) {
@@ -1753,9 +1755,10 @@ pub fn run(mut config: Config, stop: Arc<AtomicBool>) -> Result<(), Error> {
                     let web_data = if game_running && bridge.matches() && sdk_alive {
                         plugin.telemetry.read().zip(plugin.truck.read()).filter(|(_,truck)|!truck.id.as_str().is_empty()).map(|(t,truck)|{
                     let extra=bridge.bridge().web_vehicle.read().unwrap_or_default();
+                    let coach_telemetry=coach_watch.read(plugin.pid.load(Ordering::Relaxed),Instant::now());
                     let warnings:[Option<bool>;7]=std::array::from_fn(|i|extra.warning(i));
                     let wear:[Option<f32>;5]=std::array::from_fn(|i|extra.wear(i));
-                    serde_json::json!({"name":truck.name.as_str(),"coach":speakers::is_coach(truck.id.as_str()),"paused":t.paused,"cruise":extra.known(0).then_some(t.cruise_control_speed>0.0),"parkingBrake":extra.known(5).then_some(t.parking_brake),"engine":extra.known(3).then_some(t.engine_enabled),"electric":extra.known(4).then_some(t.electric_enabled),"lowBeam":extra.known(6).then_some(t.low_beam),"highBeam":extra.known(7).then_some(t.high_beam),"leftBlinker":extra.known(8).then_some(t.left_blinker),"rightBlinker":extra.known(9).then_some(t.right_blinker),"fuel":extra.known(1).then_some(t.fuel),"fuelRange":extra.known(2).then_some(t.fuel_range),"wear":wear,"warnings":warnings})
+                    serde_json::json!({"name":truck.name.as_str(),"coach":speakers::is_coach(truck.id.as_str()),"paused":t.paused,"cruise":extra.known(0).then_some(t.cruise_control_speed>0.0),"parkingBrake":extra.known(5).then_some(t.parking_brake),"engine":extra.known(3).then_some(t.engine_enabled),"electric":extra.known(4).then_some(t.electric_enabled),"lowBeam":extra.known(6).then_some(t.low_beam),"highBeam":extra.known(7).then_some(t.high_beam),"leftBlinker":extra.known(8).then_some(t.left_blinker),"rightBlinker":extra.known(9).then_some(t.right_blinker),"fuel":extra.known(1).then_some(t.fuel),"fuelRange":extra.known(2).then_some(t.fuel_range),"wear":wear,"warnings":warnings,"laneAssist":null,"coachTelemetry":coach_telemetry})
                 })
                     } else {
                         None

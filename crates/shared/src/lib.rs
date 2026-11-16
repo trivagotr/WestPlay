@@ -11,6 +11,7 @@
 pub mod web_vehicle;
 pub use web_vehicle::WebVehicle;
 pub mod cityhash;
+pub mod coach;
 pub mod crash;
 pub mod navigator;
 pub mod probe;

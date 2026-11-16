@@ -64,81 +64,176 @@
               <span class="panel-index">01</span>
               <h2>Araç durumu</h2>
             </div>
-            <dl class="state-list">
-              <div>
-                <dt>Cruise control</dt>
-                <dd id="state-cruise">—</dd>
+            <div class="instrument-grid" aria-label="Gösterge lambaları">
+              <div
+                class="telltale"
+                data-indicator="cruise"
+                data-label="Cruise control"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="cruise"></span
+                ><span class="telltale-label">Cruise control</span
+                ><span class="sr-only" id="state-cruise">Veri yok</span>
               </div>
-              <div>
-                <dt>El freni</dt>
-                <dd id="state-parkingBrake">—</dd>
+              <div
+                class="telltale"
+                data-indicator="laneAssist"
+                data-label="Şerit desteği"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="laneAssist"></span
+                ><span class="telltale-label">Şerit desteği</span
+                ><span class="sr-only" id="state-laneAssist">Veri yok</span>
               </div>
-              <div>
-                <dt>Motor</dt>
-                <dd id="state-engine">—</dd>
+              <div
+                class="telltale"
+                data-indicator="parkingBrake"
+                data-label="El freni"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="parkingBrake"></span
+                ><span class="telltale-label">El freni</span
+                ><span class="sr-only" id="state-parkingBrake">Veri yok</span>
               </div>
-              <div>
-                <dt>Elektrik</dt>
-                <dd id="state-electric">—</dd>
+              <div
+                class="telltale"
+                data-indicator="engine"
+                data-label="Motor"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="engine"></span
+                ><span class="telltale-label">Motor</span
+                ><span class="sr-only" id="state-engine">Veri yok</span>
               </div>
-              <div>
-                <dt>Kısa far</dt>
-                <dd id="state-lowBeam">—</dd>
+              <div
+                class="telltale"
+                data-indicator="electric"
+                data-label="Elektrik"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="electric"></span
+                ><span class="telltale-label">Elektrik</span
+                ><span class="sr-only" id="state-electric">Veri yok</span>
               </div>
-              <div>
-                <dt>Uzun far</dt>
-                <dd id="state-highBeam">—</dd>
+              <div
+                class="telltale"
+                data-indicator="lowBeam"
+                data-label="Kısa far"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="lowBeam"></span
+                ><span class="telltale-label">Kısa far</span
+                ><span class="sr-only" id="state-lowBeam">Veri yok</span>
               </div>
-              <div>
-                <dt>Sol sinyal</dt>
-                <dd id="state-leftBlinker">—</dd>
+              <div
+                class="telltale"
+                data-indicator="highBeam"
+                data-label="Uzun far"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="highBeam"></span
+                ><span class="telltale-label">Uzun far</span
+                ><span class="sr-only" id="state-highBeam">Veri yok</span>
               </div>
-              <div>
-                <dt>Sağ sinyal</dt>
-                <dd id="state-rightBlinker">—</dd>
+              <div
+                class="telltale"
+                data-indicator="leftBlinker"
+                data-label="Sol sinyal"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="leftBlinker"></span
+                ><span class="telltale-label">Sol sinyal</span
+                ><span class="sr-only" id="state-leftBlinker">Veri yok</span>
               </div>
-            </dl>
+              <div
+                class="telltale"
+                data-indicator="rightBlinker"
+                data-label="Sağ sinyal"
+                data-state="unknown"
+                role="img"
+                tabindex="0"
+              >
+                <span class="telltale-symbol" data-symbol="rightBlinker"></span
+                ><span class="telltale-label">Sağ sinyal</span
+                ><span class="sr-only" id="state-rightBlinker">Veri yok</span>
+              </div>
+            </div>
             <div class="fuel-grid">
-              <div><span>YAKIT</span><strong id="fuel-value">—</strong></div>
-              <div><span>MENZİL</span><strong id="range-value">—</strong></div>
+              <div>
+                <span class="fuel-caption"><i data-symbol="fuel"></i>YAKIT</span
+                ><strong id="fuel-value">—</strong>
+              </div>
+              <div>
+                <span class="fuel-caption"
+                  ><i data-symbol="range"></i>MENZİL</span
+                ><strong id="range-value">—</strong>
+              </div>
             </div>
             <h3>Bileşen hasarı</h3>
             <div class="wear-list">
               <div>
                 <div class="wear-label">
-                  <span>Motor</span><strong id="wear-0">—</strong>
+                  <span class="wear-name"
+                    ><i data-symbol="engine"></i>Motor</span
+                  ><strong id="wear-0">—</strong>
                 </div>
                 <div class="wear-track"><i id="wear-bar-0"></i></div>
               </div>
               <div>
                 <div class="wear-label">
-                  <span>Şanzıman</span><strong id="wear-1">—</strong>
+                  <span class="wear-name"
+                    ><i data-symbol="transmission"></i>Şanzıman</span
+                  ><strong id="wear-1">—</strong>
                 </div>
                 <div class="wear-track"><i id="wear-bar-1"></i></div>
               </div>
               <div>
                 <div class="wear-label">
-                  <span>Gövde</span><strong id="wear-2">—</strong>
+                  <span class="wear-name"><i data-symbol="body"></i>Gövde</span
+                  ><strong id="wear-2">—</strong>
                 </div>
                 <div class="wear-track"><i id="wear-bar-2"></i></div>
               </div>
               <div>
                 <div class="wear-label">
-                  <span>Şasi</span><strong id="wear-3">—</strong>
+                  <span class="wear-name"
+                    ><i data-symbol="chassis"></i>Şasi</span
+                  ><strong id="wear-3">—</strong>
                 </div>
                 <div class="wear-track"><i id="wear-bar-3"></i></div>
               </div>
               <div>
                 <div class="wear-label">
-                  <span>Tekerlek</span><strong id="wear-4">—</strong>
+                  <span class="wear-name"
+                    ><i data-symbol="wheels"></i>Tekerlek</span
+                  ><strong id="wear-4">—</strong>
                 </div>
                 <div class="wear-track"><i id="wear-bar-4"></i></div>
               </div>
             </div>
             <h3>Uyarılar</h3>
-            <ul id="warning-list" class="warning-list">
+            <ul id="warning-list" class="warning-list warning-cluster">
               <li class="quiet">Veri bekleniyor</li>
             </ul>
+            <p id="warning-note" class="warning-note">
+              Uyarı verisi bekleniyor
+            </p>
           </aside>
           <section class="screen-panel" aria-label="Canlı GPS ve medya">
             <div class="screen-heading">
@@ -187,14 +282,23 @@
             </p>
             <div class="coach-card">
               <div class="panel-heading">
-                <span class="panel-index">03</span>
+                <span class="coach-symbol" data-symbol="passengers"></span>
                 <h2>Yolcular</h2>
+                <span class="coach-source" id="coach-source"></span>
               </div>
-              <strong id="coach-status">Yolcu verisi alınamıyor</strong>
-              <p>
-                Mutluluk ve durak gecikmesi için doğrulanmış veri kaynağı henüz
-                yok. Şerit takip durumu da alınamıyor.
-              </p>
+              <p class="coach-caption">ORTALAMA MEMNUNİYET</p>
+              <div id="coach-value" class="coach-value">—</div>
+              <div
+                id="coach-meter"
+                class="coach-meter"
+                role="meter"
+                aria-label="Ortalama yolcu memnuniyeti"
+                aria-valuemin="0"
+                aria-valuemax="100"
+              >
+                <i id="coach-bar"></i>
+              </div>
+              <p id="coach-status" role="status">Yolcu bağlantısı bekleniyor</p>
             </div>
           </aside>
         </div>

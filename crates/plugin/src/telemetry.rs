@@ -158,6 +158,7 @@ pub unsafe fn register(params: &TelemetryInitParamsV100) {
         }
 
         crate::web_vehicle::register(params);
+        crate::coach::register(params);
         let register_channel: ChannelRegisterFn = std::mem::transmute(params.register_for_channel);
         let mut registered = 0;
         for (index, &(name, value_type, _)) in CHANNELS.iter().enumerate() {
@@ -239,6 +240,7 @@ unsafe fn on_game_event(event: u32, info: *const c_void) {
                     };
                     bridge.plugin.telemetry.write(&published);
                     crate::web_vehicle::publish();
+                    crate::coach::publish();
                 }
                 let (speed, paused) = (snapshot.speed, snapshot.paused);
                 drop(snapshot);
